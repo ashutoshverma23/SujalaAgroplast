@@ -138,7 +138,7 @@ const Stores = () => {
 
       if (res.ok) {
         setIsModalOpen(false);
-        setFormData({ name: "", ownerName: "", location: "", contact: "", type: "Main Outlet", status: "Active" });
+        setFormData({ name: "", ownerName: "", location: "", contact: "", type: "Main Outlet", status: "Active", base64Image: "", geotagLat: null, geotagLng: null, geotagTimestamp: null });
         fetchStores();
       } else {
         const d = await res.json();

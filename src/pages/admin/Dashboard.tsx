@@ -39,7 +39,7 @@ const HotSellingProducts = () => {
 
   const [stateProducts, setStateProducts] = useState<any[]>([]);
   const [dealerProducts, setDealerProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {

@@ -113,7 +113,7 @@ const Farmers = () => {
 
       if (res.ok) {
         setIsModalOpen(false);
-        setFormData({ name: "", location: "", contact: "", cropsInput: "", landSize: "", remark: "" });
+        setFormData({ name: "", location: "", contact: "", cropsInput: "", landSize: "", remark: "", base64Image: "", geotagLat: null, geotagLng: null, geotagTimestamp: null });
         fetchFarmers();
       } else {
         const d = await res.json();

@@ -88,7 +88,7 @@ export default function Orders() {
     }
   };
 
-  const handleOpenInvoice = async (orderId: string) => {
+  const handleOpenInvoice = async (orderId: number) => {
     const details = await fetchOrderDetails(orderId);
     if (details) setInvoiceOrder(details);
   };
