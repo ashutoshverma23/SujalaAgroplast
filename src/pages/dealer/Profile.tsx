@@ -15,12 +15,30 @@ export default function Profile() {
   const [isEditingKyc, setIsEditingKyc] = useState(false);
   const [savingKyc, setSavingKyc] = useState(false);
   const [kycFormData, setKycFormData] = useState({
-    bankDetails: "",
+    firmName: "",
+    whatsappNo: "",
+    lat: "",
+    lng: "",
+    address: "",
+    pincode: "",
+    state: "",
+    district: "",
+    taluka: "",
+    city: "",
+    firmType: "",
+    godownAddress: "",
+    godownPincode: "",
     aadhar: "",
     pan: "",
     dob: "",
-    address: "",
-    gstin: ""
+    gstin: "",
+    bankHolderName: "",
+    bankName: "",
+    bankBranch: "",
+    bankAccountNo: "",
+    bankCity: "",
+    bankIfsc: "",
+    bankAccountType: "",
   });
 
   useEffect(() => {
@@ -47,12 +65,30 @@ export default function Profile() {
         const kycData = await kycRes.json();
         setKyc(kycData);
         setKycFormData({
-          bankDetails: kycData.bankDetails || "",
+          firmName: kycData.firmName || "",
+          whatsappNo: kycData.whatsappNo || "",
+          lat: kycData.lat || "",
+          lng: kycData.lng || "",
+          address: kycData.address || "",
+          pincode: kycData.pincode || "",
+          state: kycData.state || "",
+          district: kycData.district || "",
+          taluka: kycData.taluka || "",
+          city: kycData.city || "",
+          firmType: kycData.firmType || "",
+          godownAddress: kycData.godownAddress || "",
+          godownPincode: kycData.godownPincode || "",
           aadhar: kycData.aadhar || "",
           pan: kycData.pan || "",
           dob: kycData.dob ? new Date(kycData.dob).toISOString().split('T')[0] : "",
-          address: kycData.address || "",
-          gstin: kycData.gstin || ""
+          gstin: kycData.gstin || "",
+          bankHolderName: kycData.bankHolderName || "",
+          bankName: kycData.bankName || "",
+          bankBranch: kycData.bankBranch || "",
+          bankAccountNo: kycData.bankAccountNo || "",
+          bankCity: kycData.bankCity || "",
+          bankIfsc: kycData.bankIfsc || "",
+          bankAccountType: kycData.bankAccountType || "",
         });
       }
     } catch (e) {
@@ -131,7 +167,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-sm border border-gray-100 relative overflow-hidden">
+      <div className="bg-white rounded-[2.5rem] p-6 md:p-12 shadow-sm border border-gray-100 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-emerald-500 to-green-400"></div>
         
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-end gap-6 mt-12">
@@ -220,8 +256,8 @@ export default function Profile() {
       </div>
 
       {/* KYC Section */}
-      <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-8">
+      <div className="bg-white rounded-[2.5rem] p-6 md:p-12 shadow-sm border border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
               <FileText size={24} />
@@ -252,59 +288,211 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <label className="text-sm font-bold text-gray-400 uppercase tracking-widest block mb-2">GSTIN</label>
-            {isEditingKyc ? (
-              <input type="text" value={kycFormData.gstin} onChange={e => setKycFormData({...kycFormData, gstin: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" placeholder="e.g. 29ABCDE1234F2Z5" />
-            ) : (
-              <p className="text-lg font-semibold text-gray-900 uppercase">{kyc?.gstin || <span className="text-gray-400 italic normal-case">Not provided</span>}</p>
-            )}
-          </div>
-          
-          <div>
-            <label className="text-sm font-bold text-gray-400 uppercase tracking-widest block mb-2">PAN Number</label>
-            {isEditingKyc ? (
-              <input type="text" value={kycFormData.pan} onChange={e => setKycFormData({...kycFormData, pan: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" placeholder="e.g. ABCDE1234F" />
-            ) : (
-              <p className="text-lg font-semibold text-gray-900 uppercase">{kyc?.pan || <span className="text-gray-400 italic normal-case">Not provided</span>}</p>
-            )}
+        <div className="space-y-8">
+          <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-2">Personal Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="md:col-span-2">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Firm Name*</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.firmName} onChange={e => setKycFormData({...kycFormData, firmName: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.firmName || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Mobile No*</label>
+              <p className="text-sm font-semibold text-gray-900">{profile?.mobile}</p>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Whatsapp No</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.whatsappNo} onChange={e => setKycFormData({...kycFormData, whatsappNo: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.whatsappNo || '-'}</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Latitude</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.lat} onChange={e => setKycFormData({...kycFormData, lat: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.lat || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Longitude</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.lng} onChange={e => setKycFormData({...kycFormData, lng: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.lng || '-'}</p>
+              )}
+            </div>
+
+            <div className="md:col-span-3">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Address*</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.address} onChange={e => setKycFormData({...kycFormData, address: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.address || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Pincode*</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.pincode} onChange={e => setKycFormData({...kycFormData, pincode: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.pincode || '-'}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">State*</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.state} onChange={e => setKycFormData({...kycFormData, state: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.state || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">District*</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.district} onChange={e => setKycFormData({...kycFormData, district: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.district || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Taluka*</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.taluka} onChange={e => setKycFormData({...kycFormData, taluka: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.taluka || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">City/Village*</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.city} onChange={e => setKycFormData({...kycFormData, city: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.city || '-'}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">E-Mail</label>
+              <p className="text-sm font-semibold text-gray-900">{profile?.email || '-'}</p>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">GSTN.</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.gstin} onChange={e => setKycFormData({...kycFormData, gstin: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900 uppercase">{kyc?.gstin || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">PAN. No</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.pan} onChange={e => setKycFormData({...kycFormData, pan: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900 uppercase">{kyc?.pan || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Firm Type*</label>
+              {isEditingKyc ? (
+                <select value={kycFormData.firmType} onChange={e => setKycFormData({...kycFormData, firmType: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 bg-white">
+                  <option value="">Select Type</option>
+                  <option value="PROPRIETOR">PROPRIETOR</option>
+                  <option value="PARTNERSHIP">PARTNERSHIP</option>
+                  <option value="PVT LTD">PVT LTD</option>
+                </select>
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.firmType || '-'}</p>
+              )}
+            </div>
+
+            <div className="md:col-span-3">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Godown Address</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.godownAddress} onChange={e => setKycFormData({...kycFormData, godownAddress: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.godownAddress || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Pincode (Godown)</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.godownPincode} onChange={e => setKycFormData({...kycFormData, godownPincode: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.godownPincode || '-'}</p>
+              )}
+            </div>
           </div>
 
-          <div>
-            <label className="text-sm font-bold text-gray-400 uppercase tracking-widest block mb-2">Aadhar Number</label>
-            {isEditingKyc ? (
-              <input type="text" value={kycFormData.aadhar} onChange={e => setKycFormData({...kycFormData, aadhar: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="12-digit Aadhar" />
-            ) : (
-              <p className="text-lg font-semibold text-gray-900">{kyc?.aadhar || <span className="text-gray-400 italic">Not provided</span>}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="text-sm font-bold text-gray-400 uppercase tracking-widest block mb-2">Date of Birth / Incorporation</label>
-            {isEditingKyc ? (
-              <input type="date" value={kycFormData.dob} onChange={e => setKycFormData({...kycFormData, dob: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
-            ) : (
-              <p className="text-lg font-semibold text-gray-900">{kyc?.dob ? new Date(kyc.dob).toLocaleDateString() : <span className="text-gray-400 italic">Not provided</span>}</p>
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="text-sm font-bold text-gray-400 uppercase tracking-widest block mb-2">Bank Details</label>
-            {isEditingKyc ? (
-              <textarea value={kycFormData.bankDetails} onChange={e => setKycFormData({...kycFormData, bankDetails: e.target.value})} rows={3} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Bank Name, Account Number, IFSC Code..." />
-            ) : (
-              <p className="text-lg font-semibold text-gray-900 whitespace-pre-line">{kyc?.bankDetails || <span className="text-gray-400 italic">Not provided</span>}</p>
-            )}
-          </div>
-          
-          <div className="md:col-span-2">
-            <label className="text-sm font-bold text-gray-400 uppercase tracking-widest block mb-2">Registered Address</label>
-            {isEditingKyc ? (
-              <textarea value={kycFormData.address} onChange={e => setKycFormData({...kycFormData, address: e.target.value})} rows={3} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Full business or residential address" />
-            ) : (
-              <p className="text-lg font-semibold text-gray-900 whitespace-pre-line">{kyc?.address || <span className="text-gray-400 italic">Not provided</span>}</p>
-            )}
+          <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-2 mt-8">Bank Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Bank Holder Name</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.bankHolderName} onChange={e => setKycFormData({...kycFormData, bankHolderName: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900 uppercase">{kyc?.bankHolderName || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Bank Name</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.bankName} onChange={e => setKycFormData({...kycFormData, bankName: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900 uppercase">{kyc?.bankName || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Bank Branch Name</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.bankBranch} onChange={e => setKycFormData({...kycFormData, bankBranch: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900 uppercase">{kyc?.bankBranch || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Bank Account Number</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.bankAccountNo} onChange={e => setKycFormData({...kycFormData, bankAccountNo: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.bankAccountNo || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Bank City</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.bankCity} onChange={e => setKycFormData({...kycFormData, bankCity: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900 uppercase">{kyc?.bankCity || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Bank IFSC Code</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.bankIfsc} onChange={e => setKycFormData({...kycFormData, bankIfsc: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900 uppercase">{kyc?.bankIfsc || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Account Type</label>
+              {isEditingKyc ? (
+                <select value={kycFormData.bankAccountType} onChange={e => setKycFormData({...kycFormData, bankAccountType: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 bg-white">
+                  <option value="">Select</option>
+                  <option value="Current">Current</option>
+                  <option value="Savings">Savings</option>
+                </select>
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.bankAccountType || '-'}</p>
+              )}
+            </div>
           </div>
         </div>
       </div>

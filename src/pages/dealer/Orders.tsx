@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Package, Clock, CheckCircle, Truck, IndianRupee, Loader2, Info, X, Eye, Download, FileText } from "lucide-react";
+import { Calendar, Package, Clock, CheckCircle, Truck, IndianRupee, Loader2, Info, X, Eye, Download, FileText, Receipt } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -10,6 +10,7 @@ export default function Orders() {
 
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [viewingOrder, setViewingOrder] = useState<any>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<any>(null);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [paymentRef, setPaymentRef] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
@@ -87,82 +88,69 @@ export default function Orders() {
     }
   };
 
-  const handleDownloadInvoice = async (orderId: number) => {
+  const handleOpenInvoice = async (orderId: string) => {
     const details = await fetchOrderDetails(orderId);
-    if (!details) return;
+    if (details) setInvoiceOrder(details);
+  };
 
+  const handleDownloadInvoice = (details: any) => {
     const doc = new jsPDF();
-    
-    // Styling
-    const primaryColor = [16, 185, 129]; // Emerald 500
-    
-    // Header
+    const primaryColor: [number, number, number] = [16, 185, 129];
+
     doc.setFillColor(249, 250, 251);
     doc.rect(0, 0, 210, 40, 'F');
-    
     doc.setTextColor(31, 41, 55);
     doc.setFontSize(24);
     doc.setFont("helvetica", "bold");
     doc.text("INVOICE", 105, 25, { align: "center" });
-    
+
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text("SUJALA AGRO INDUSTRIES", 20, 50);
     doc.text("Quality Mulching Solutions", 20, 55);
-    
-    doc.setFontSize(10);
     doc.text(`Order ID: ORD-${details.id.slice(0, 8).toUpperCase()}`, 140, 50);
-    doc.text(`Date: ${new Date(details.orderDate).toLocaleDateString()}`, 140, 55);
+    doc.text(`Date: ${new Date(details.orderDate).toLocaleDateString('en-GB')}`, 140, 55);
     doc.text(`Status: ${details.status}`, 140, 60);
-    
-    // Divider
+
     doc.setDrawColor(229, 231, 235);
     doc.line(20, 70, 190, 70);
-    
-    // Payment Details
+
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text("Payment Information", 20, 80);
-    
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Payment Status: ${details.paymentStatus}`, 20, 90);
     doc.text(`Transaction ID: ${details.paymentReference || 'N/A'}`, 20, 95);
-    
-    // Items Table
+
     const tableData = details.items.map((item: any) => [
-      `${item.productName}\n${item.variantName}`,
+      `${item.productName} - ${item.variantName}`,
       `${item.width} x ${item.length}`,
       item.type,
       item.quantity,
       `INR ${item.unitPrice}`,
       `INR ${item.quantity * item.unitPrice}`
     ]);
-    
+
     autoTable(doc, {
       startY: 105,
       head: [['Product Details', 'Size', 'Type', 'Qty', 'Unit Price', 'Total']],
       body: tableData,
-      headStyles: { fillColor: primaryColor as [number, number, number], textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold' },
+      headStyles: { fillColor: primaryColor, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [249, 250, 251] as [number, number, number] },
-      margin: { top: 105 },
     });
-    
+
     const finalY = (doc as any).lastAutoTable?.finalY ?? 150;
-    
-    // Total
     const total = details.totalAmount || details.items.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0);
-    
+
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text(`Grand Total: INR ${total}`, 190, finalY + 15, { align: "right" });
-    
-    // Footer
     doc.setFontSize(8);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(156, 163, 175);
     doc.text("This is a computer generated invoice.", 105, 280, { align: "center" });
-    
+
     doc.save(`Invoice_ORD_${details.id.slice(0, 8).toUpperCase()}.pdf`);
   };
 
@@ -187,7 +175,7 @@ export default function Orders() {
             <h4 className="font-black text-gray-900 text-lg">ORD-{order.id.slice(0, 8).toUpperCase()}</h4>
             <p className="text-sm font-bold text-gray-400 flex items-center gap-2 mt-1">
               <Calendar size={14} />
-              {new Date(order.orderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {new Date(order.orderDate).toLocaleDateString('en-GB')}
             </p>
           </div>
         </div>
@@ -239,10 +227,10 @@ export default function Orders() {
           View Details
         </button>
         <button 
-          onClick={() => handleDownloadInvoice(order.id)}
+          onClick={() => handleOpenInvoice(order.id)}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl hover:bg-emerald-100 transition-colors border border-emerald-100"
         >
-          <Download size={14} />
+          <Receipt size={14} />
           Invoice
         </button>
       </div>
@@ -356,7 +344,7 @@ export default function Orders() {
                   <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Date</p>
                     <span className="font-bold text-gray-900">
-                      {new Date(viewingOrder.orderDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      {new Date(viewingOrder.orderDate).toLocaleDateString('en-GB')}
                     </span>
                   </div>
                 </div>
@@ -412,11 +400,11 @@ export default function Orders() {
                   </p>
                 </div>
                 <button 
-                  onClick={() => handleDownloadInvoice(viewingOrder.id)}
+                  onClick={() => { setViewingOrder(null); handleOpenInvoice(viewingOrder.id); }}
                   className="px-8 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
                 >
-                  <Download size={20} />
-                  Download Invoice
+                  <Receipt size={20} />
+                  View Invoice
                 </button>
               </div>
             </motion.div>
@@ -424,6 +412,120 @@ export default function Orders() {
         )}
       </AnimatePresence>
       
+      {/* Invoice Modal */}
+      <AnimatePresence>
+        {invoiceOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col"
+            >
+              {/* Invoice Modal Header */}
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-emerald-900">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-700 rounded-xl">
+                    <Receipt size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white">Invoice</h3>
+                    <p className="text-xs font-bold text-emerald-300">ORD-{invoiceOrder.id.slice(0, 8).toUpperCase()}</p>
+                  </div>
+                </div>
+                <button onClick={() => setInvoiceOrder(null)} className="p-2 text-emerald-300 hover:bg-emerald-700 rounded-full transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Invoice Body */}
+              <div className="flex-1 overflow-y-auto">
+                {/* Company + Order Info */}
+                <div className="p-6 bg-gray-50 border-b border-gray-100 flex flex-col sm:flex-row justify-between gap-4">
+                  <div>
+                    <p className="text-lg font-black text-gray-900">SUJALA AGRO INDUSTRIES</p>
+                    <p className="text-sm text-gray-500 font-medium">Quality Mulching Solutions</p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Invoice Details</p>
+                    <p className="text-sm font-bold text-gray-700">Date: {new Date(invoiceOrder.orderDate).toLocaleDateString('en-GB')}</p>
+                    <p className="text-sm font-bold text-gray-700">Status: <span className="text-emerald-600">{invoiceOrder.status}</span></p>
+                    <p className="text-sm font-bold text-gray-700">Payment: <span className={invoiceOrder.paymentStatus === 'Approved' ? 'text-emerald-600' : invoiceOrder.paymentStatus === 'Pending' ? 'text-rose-500' : 'text-blue-600'}>{invoiceOrder.paymentStatus}</span></p>
+                  </div>
+                </div>
+
+                {/* Payment Reference */}
+                {invoiceOrder.paymentReference && (
+                  <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2 text-sm">
+                    <FileText size={14} className="text-emerald-500" />
+                    <span className="font-bold text-gray-500">Transaction Ref:</span>
+                    <span className="font-black text-gray-900">{invoiceOrder.paymentReference}</span>
+                  </div>
+                )}
+
+                {/* Items Table */}
+                <div className="p-6">
+                  <h4 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-4">Order Items</h4>
+                  <div className="overflow-x-auto rounded-2xl border border-gray-100">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-emerald-900 text-white">
+                          <th className="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider">Product</th>
+                          <th className="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider">Spec</th>
+                          <th className="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider">Qty</th>
+                          <th className="text-right px-4 py-3 font-bold text-xs uppercase tracking-wider">Unit</th>
+                          <th className="text-right px-4 py-3 font-bold text-xs uppercase tracking-wider">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoiceOrder.items.map((item: any, idx: number) => (
+                          <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-4 py-3 text-left">
+                              <p className="font-bold text-gray-900">{item.productName}</p>
+                              <p className="text-xs text-gray-500">{item.variantName}</p>
+                            </td>
+                            <td className="px-4 py-3 text-center text-gray-600 font-medium">{item.width} • {item.length} • {item.type}</td>
+                            <td className="px-4 py-3 text-center font-black text-gray-900">{item.quantity}</td>
+                            <td className="px-4 py-3 text-right font-bold text-gray-700">₹{item.unitPrice}</td>
+                            <td className="px-4 py-3 text-right font-black text-emerald-700">₹{item.quantity * item.unitPrice}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="px-6 pb-6">
+                  <div className="flex items-center justify-between p-4 bg-emerald-900 rounded-2xl">
+                    <p className="font-black text-emerald-200 text-sm uppercase tracking-widest">Grand Total</p>
+                    <p className="text-2xl font-black text-white flex items-center gap-1">
+                      <IndianRupee size={20} />
+                      {invoiceOrder.totalAmount || invoiceOrder.items.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0)}
+                    </p>
+                  </div>
+                  <p className="text-center text-xs text-gray-400 mt-4 italic">This is a computer generated invoice.</p>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                <button onClick={() => setInvoiceOrder(null)} className="px-5 py-2.5 font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
+                  Close
+                </button>
+                <button
+                  onClick={() => handleDownloadInvoice(invoiceOrder)}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-black rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all"
+                >
+                  <Download size={18} />
+                  Download PDF
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Global Loader for fetching details */}
       <AnimatePresence>
         {fetchingDetails && (

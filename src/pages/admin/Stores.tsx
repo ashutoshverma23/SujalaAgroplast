@@ -55,8 +55,53 @@ const Stores = () => {
     location: "",
     contact: "",
     type: "Main Outlet",
-    status: "Active"
+    status: "Active",
+    base64Image: "",
+    geotagLat: null as number | null,
+    geotagLng: null as number | null,
+    geotagTimestamp: null as string | null
   });
+
+  const [locationLoading, setLocationLoading] = useState(false);
+
+  const handleImageCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLocationLoading(true);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setFormData(prev => ({
+                ...prev,
+                base64Image: base64String,
+                geotagLat: position.coords.latitude,
+                geotagLng: position.coords.longitude,
+                geotagTimestamp: new Date().toISOString()
+              }));
+              setLocationLoading(false);
+            },
+            (error) => {
+              console.error("Error getting location:", error);
+              alert("Could not get your location. Please ensure location services are enabled.");
+              setFormData(prev => ({
+                ...prev,
+                base64Image: base64String
+              }));
+              setLocationLoading(false);
+            }
+          );
+        } else {
+          setFormData(prev => ({ ...prev, base64Image: base64String }));
+          setLocationLoading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const fetchStores = async () => {
     try {
@@ -191,6 +236,34 @@ const Stores = () => {
                       <option value="Inactive">Inactive</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 block mb-1">Geotag Photo</label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 cursor-pointer hover:border-emerald-500 hover:text-emerald-600 transition-colors w-full">
+                      {locationLoading ? <Loader2 size={20} className="animate-spin" /> : <MapPin size={20} />}
+                      <span className="font-medium text-sm">
+                        {formData.base64Image ? "Photo Captured (Geotagged)" : "Take Geotag Photo"}
+                      </span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        capture="environment"
+                        onChange={handleImageCapture}
+                        className="hidden"
+                      />
+                    </label>
+                    {formData.base64Image && (
+                      <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-200 flex-shrink-0">
+                        <img src={formData.base64Image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                  {formData.geotagLat && formData.geotagLng && (
+                    <p className="text-xs text-gray-500 mt-2 font-medium">
+                      Location recorded: {formData.geotagLat.toFixed(4)}, {formData.geotagLng.toFixed(4)}
+                    </p>
+                  )}
                 </div>
                 <div className="pt-4 flex items-center justify-end gap-3">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">Cancel</button>

@@ -9,7 +9,7 @@ import {
   BadgeCent
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const StatsCard = ({ title, value, icon: Icon, trend, color }: any) => (
   <motion.div 
@@ -34,55 +34,101 @@ const StatsCard = ({ title, value, icon: Icon, trend, color }: any) => (
 
 const HotSellingProducts = () => {
   const [activeTab, setActiveTab] = useState<"STATE" | "DEALER">("STATE");
+  const [selectedState, setSelectedState] = useState<string>("ALL");
+  const [selectedDealer, setSelectedDealer] = useState<string>("ALL");
 
-  const stateProducts = [
-    { name: "Drip Irrigation Kit v2", sales: 1250, revenue: "₹4.5L", trend: 15, state: "Karnataka" },
-    { name: "HDPE Pipes (3 inch)", sales: 840, revenue: "₹2.1L", trend: 8, state: "Maharashtra" },
-    { name: "Micro Sprinklers", sales: 620, revenue: "₹1.8L", trend: -2, state: "Telangana" },
-    { name: "Lateral Tubes 16mm", sales: 590, revenue: "₹1.2L", trend: 5, state: "Andhra Pradesh" },
-  ];
+  const [stateProducts, setStateProducts] = useState<any[]>([]);
+  const [dealerProducts, setDealerProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const dealerProducts = [
-    { name: "Drip Irrigation Kit v2", sales: 450, revenue: "₹1.6L", trend: 12, dealer: "GreenField Agro, Hubli" },
-    { name: "Filters & Fertigation", sales: 320, revenue: "₹2.4L", trend: 24, dealer: "Sujala Fertilisers, Dharwad" },
-    { name: "HDPE Pipes (3 inch)", sales: 280, revenue: "₹85K", trend: 4, dealer: "Krishi Seva, Belagavi" },
-    { name: "Micro Sprinklers", sales: 190, revenue: "₹55K", trend: -1, dealer: "Kisan Center, Pune" },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/api/orders/analytics/hot-selling", {
+          headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setStateProducts(data.stateProducts);
+          setDealerProducts(data.dealerProducts);
+        }
+      } catch (err) {
+        console.error("Failed to fetch hot selling products:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const currentData = activeTab === "STATE" ? stateProducts : dealerProducts;
+  const uniqueStates = Array.from(new Set(stateProducts.map(p => p.state)));
+  const uniqueDealers = Array.from(new Set(dealerProducts.map(p => p.dealer)));
+
+  const currentData = activeTab === "STATE" 
+    ? (selectedState === "ALL" ? stateProducts : stateProducts.filter(p => p.state === selectedState))
+    : (selectedDealer === "ALL" ? dealerProducts : dealerProducts.filter(p => p.dealer === selectedDealer));
 
   return (
     <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-      <div className="p-8 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h4 className="text-xl font-bold text-gray-900">Hot Selling Products</h4>
-          <p className="text-sm text-gray-500 font-medium mt-1">Top performing items across regions.</p>
+      <div className="p-8 border-b border-gray-100 flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h4 className="text-xl font-bold text-gray-900">Hot Selling Products</h4>
+            <p className="text-sm text-gray-500 font-medium mt-1">Top performing items across regions.</p>
+          </div>
+          
+          {/* Tabs */}
+          <div className="flex items-center p-1 bg-gray-50 rounded-xl border border-gray-100">
+            <button
+              onClick={() => setActiveTab("STATE")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === "STATE" 
+                  ? "bg-white text-emerald-700 shadow-sm border border-gray-100" 
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <Map size={16} />
+              State-wise
+            </button>
+            <button
+              onClick={() => setActiveTab("DEALER")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === "DEALER" 
+                  ? "bg-white text-emerald-700 shadow-sm border border-gray-100" 
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <Store size={16} />
+              Dealer-wise
+            </button>
+          </div>
         </div>
-        
-        {/* Tabs */}
-        <div className="flex items-center p-1 bg-gray-50 rounded-xl border border-gray-100">
-          <button
-            onClick={() => setActiveTab("STATE")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === "STATE" 
-                ? "bg-white text-emerald-700 shadow-sm border border-gray-100" 
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <Map size={16} />
-            State-wise
-          </button>
-          <button
-            onClick={() => setActiveTab("DEALER")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === "DEALER" 
-                ? "bg-white text-emerald-700 shadow-sm border border-gray-100" 
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <Store size={16} />
-            Dealer-wise
-          </button>
+
+        {/* Filters */}
+        <div className="flex items-center">
+          {activeTab === "STATE" ? (
+            <select
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 font-medium outline-none"
+            >
+              <option value="ALL">All States</option>
+              {uniqueStates.map(state => (
+                <option key={state} value={state}>{state}</option>
+              ))}
+            </select>
+          ) : (
+            <select
+              value={selectedDealer}
+              onChange={(e) => setSelectedDealer(e.target.value)}
+              className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 font-medium outline-none"
+            >
+              <option value="ALL">All Dealers</option>
+              {uniqueDealers.map(dealer => (
+                <option key={dealer} value={dealer}>{dealer}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -90,14 +136,14 @@ const HotSellingProducts = () => {
         <div className="space-y-4">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeTab}
+              key={`${activeTab}-${activeTab === 'STATE' ? selectedState : selectedDealer}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
               className="space-y-4"
             >
-              {currentData.map((item, idx) => (
+              {currentData.length > 0 ? currentData.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between p-4 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 group">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
@@ -126,7 +172,11 @@ const HotSellingProducts = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-8 text-gray-500 font-medium">
+                  No data found for the selected filter.
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>

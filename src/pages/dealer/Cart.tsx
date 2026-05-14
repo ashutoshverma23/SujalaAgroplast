@@ -117,31 +117,38 @@ export default function Cart({ setPage }: { setPage: (p: DealerPage) => void }) 
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 space-y-4">
             {items.map((item) => (
-              <div key={item.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 flex items-center gap-6">
-                <div className="w-20 h-20 bg-emerald-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-                  <ShoppingBag size={32} className="text-emerald-500/50" />
+              <div key={item.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                {/* Icon + Info */}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="w-14 h-14 sm:w-20 sm:h-20 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0">
+                    <ShoppingBag size={28} className="text-emerald-500/50" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-base sm:text-lg font-black text-gray-900 truncate">{item.productName}</h4>
+                    <p className="text-sm font-bold text-gray-500 mt-0.5 truncate">{item.variantName}</p>
+                    <p className="text-xs font-bold text-gray-400 mt-0.5">{item.widthLabel} • {item.lengthLabel} • {item.typeName}</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-lg font-black text-gray-900">{item.productName}</h4>
-                  <p className="text-sm font-bold text-gray-500 mt-1">{item.variantName}</p>
-                  <p className="text-xs font-bold text-gray-400 mt-1">{item.widthLabel} • {item.lengthLabel} • {item.typeName}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xl font-black text-emerald-600">₹{item.unitPrice}</p>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Unit Price</p>
-                </div>
-                <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl ml-4">
-                  <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-2 hover:bg-white rounded-xl text-gray-500 transition-colors">
-                    <Minus size={16} />
+
+                {/* Price + Controls */}
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                  <div className="text-left sm:text-right">
+                    <p className="text-lg font-black text-emerald-600">₹{item.unitPrice}</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Unit Price</p>
+                  </div>
+                  <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl">
+                    <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-2 hover:bg-white rounded-xl text-gray-500 transition-colors">
+                      <Minus size={15} />
+                    </button>
+                    <span className="w-7 text-center font-black text-gray-900 text-sm">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 hover:bg-white rounded-xl text-gray-500 transition-colors">
+                      <Plus size={15} />
+                    </button>
+                  </div>
+                  <button onClick={() => removeItem(item.id)} className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                    <Trash2 size={18} />
                   </button>
-                  <span className="w-8 text-center font-black text-gray-900">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 hover:bg-white rounded-xl text-gray-500 transition-colors">
-                    <Plus size={16} />
-                  </button>
                 </div>
-                <button onClick={() => removeItem(item.id)} className="p-4 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all ml-2">
-                  <Trash2 size={20} />
-                </button>
               </div>
             ))}
           </div>

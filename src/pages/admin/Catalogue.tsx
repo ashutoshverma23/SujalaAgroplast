@@ -1,7 +1,15 @@
 import { useState, useEffect } from "react";
 import { Loader2, Edit3, Save, X } from "lucide-react";
 
-const ProductTable = ({ product, allVariants, widths, lengths, types, allPrices, onRefresh }: any) => {
+/**
+ * For each product we derive the exact set of widths / lengths / types
+ * that actually have prices, so we never render empty columns.
+ *
+ * Products whose only width is "N/A" (valueMm === 0) hide the Width column.
+ * Products with only one type hide the type sub-header row.
+ */
+
+const ProductTable = ({ product, allVariants, allWidths, allLengths, allTypes, allPrices, onRefresh }: any) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editedPrices, setEditedPrices] = useState<Record<string, number>>({});
@@ -9,82 +17,81 @@ const ProductTable = ({ product, allVariants, widths, lengths, types, allPrices,
 
   const variants = allVariants.filter((v: any) => v.productId === product.id);
 
-  const getPrice = (variantId: number, widthId: number, lengthId: number, typeId: number) => {
-    const p = allPrices.find(
+  // ── Derive the exact dimensions used by this product ─────────────────────
+  const productPrices = allPrices.filter((p: any) =>
+    variants.some((v: any) => v.id === p.variantId)
+  );
+
+  const usedWidthIds  = new Set(productPrices.map((p: any) => p.widthId));
+  const usedLengthIds = new Set(productPrices.map((p: any) => p.lengthId));
+  const usedTypeIds   = new Set(productPrices.map((p: any) => p.typeId));
+
+  const activeWidths  = allWidths.filter((w: any) => usedWidthIds.has(w.id)).sort((a: any, b: any) => a.valueMm - b.valueMm);
+  const activeLengths = allLengths.filter((l: any) => usedLengthIds.has(l.id)).sort((a: any, b: any) => a.valueM - b.valueM);
+  const activeTypes   = allTypes.filter((t: any) => usedTypeIds.has(t.id));
+
+  // Width column is pointless when the only width is N/A (valueMm === 0)
+  const showWidthCol  = !(activeWidths.length === 1 && activeWidths[0].valueMm === 0);
+  // Type sub-header row is pointless when there is only one type
+  const showTypeRow   = activeTypes.length > 1;
+
+  const getPrice = (variantId: string, widthId: string, lengthId: string, typeId: string) => {
+    const p = productPrices.find(
       (p: any) =>
         p.variantId === variantId &&
-        p.widthId === widthId &&
-        p.lengthId === lengthId &&
-        p.typeId === typeId
+        p.widthId   === widthId   &&
+        p.lengthId  === lengthId  &&
+        p.typeId    === typeId
     );
-    return p ? p.price : "";
+    return p ? p.price : null;
   };
 
-  const handlePriceChange = (variantId: number, widthId: number, lengthId: number, typeId: number, value: string) => {
-    const key = `${variantId}-${widthId}-${lengthId}-${typeId}`;
+  const makeKey = (vId: string, wId: string, lId: string, tId: string) =>
+    `${vId}|${wId}|${lId}|${tId}`;
+
+  const handlePriceChange = (vId: string, wId: string, lId: string, tId: string, value: string) => {
+    const key    = makeKey(vId, wId, lId, tId);
     const parsed = parseInt(value);
-    
-    setEditedPrices(prev => {
-      const newPrices = { ...prev };
-      if (isNaN(parsed) && value === "") {
-        newPrices[key] = 0;
-      } else {
-        newPrices[key] = parsed;
-      }
-      return newPrices;
-    });
+    setEditedPrices(prev => ({ ...prev, [key]: isNaN(parsed) ? 0 : parsed }));
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     const updates = Object.entries(editedPrices).map(([key, price]) => {
-      const [variantId, widthId, lengthId, typeId] = key.split("-").map(Number);
+      const [variantId, widthId, lengthId, typeId] = key.split("|");
       return { variantId, widthId, lengthId, typeId, price };
     });
 
-    if (updates.length === 0) {
-      setIsEditing(false);
-      setIsSaving(false);
-      return;
-    }
+    if (updates.length === 0) { setIsEditing(false); setIsSaving(false); return; }
 
     try {
       const res = await fetch("http://localhost:3000/api/products/catalogue", {
         method: "PUT",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
         body: JSON.stringify({ updates }),
       });
-
-      if (res.ok) {
-        setEditedPrices({});
-        setIsEditing(false);
-        onRefresh();
-      } else {
-        const errorData = await res.json();
-        console.error("Failed to save prices:", errorData.message);
-      }
-    } catch (e) {
-      console.error("Failed to save prices", e);
-    } finally {
-      setIsSaving(false);
-    }
+      if (res.ok) { setEditedPrices({}); setIsEditing(false); onRefresh(); }
+      else { const err = await res.json(); console.error("Failed to save:", err.message); }
+    } catch (e) { console.error(e); }
+    finally { setIsSaving(false); }
   };
 
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditedPrices({});
-  };
+  const filteredVariants = activeFilter === "ALL"
+    ? variants
+    : variants.filter((v: any) => v.id === activeFilter);
 
-  const filteredVariants = activeFilter === "ALL" 
-    ? variants 
-    : variants.filter((v: any) => v.id === Number(activeFilter));
+  if (variants.length === 0 || productPrices.length === 0) return null;
+
+  // When width is hidden, we use the single N/A width's id for lookups
+  const singleWidthId = !showWidthCol ? activeWidths[0]?.id : null;
+
+  // Column count for the type-span header
+  const typeColCount = showTypeRow ? activeTypes.length : 1;
 
   let srNo = 1;
-
-  if (variants.length === 0) return null;
 
   return (
     <div className="space-y-4 mb-12">
@@ -93,9 +100,9 @@ const ProductTable = ({ product, allVariants, widths, lengths, types, allPrices,
           <h3 className="text-2xl font-black text-gray-900 tracking-tight">{product.name}</h3>
           <p className="text-gray-500 font-medium mt-1">{product.category} pricing matrix.</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
-          <select 
+          <select
             value={activeFilter}
             onChange={(e) => setActiveFilter(e.target.value)}
             className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 focus:ring-emerald-500 focus:border-emerald-500 outline-none cursor-pointer shadow-sm"
@@ -107,27 +114,18 @@ const ProductTable = ({ product, allVariants, widths, lengths, types, allPrices,
           </select>
 
           {!isEditing ? (
-            <button 
+            <button
               onClick={() => setIsEditing(true)}
               className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all"
             >
-              <Edit3 size={18} />
-              <span>Edit Prices</span>
+              <Edit3 size={18} /><span>Edit Prices</span>
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <button 
-                onClick={cancelEdit}
-                className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-all"
-              >
-                <X size={18} />
-                <span>Cancel</span>
+              <button onClick={() => { setIsEditing(false); setEditedPrices({}); }} className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-all">
+                <X size={18} /><span>Cancel</span>
               </button>
-              <button 
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all disabled:opacity-50"
-              >
+              <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all disabled:opacity-50">
                 {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                 <span>{isSaving ? "Saving..." : "Save"}</span>
               </button>
@@ -141,80 +139,91 @@ const ProductTable = ({ product, allVariants, widths, lengths, types, allPrices,
           <table className="w-full text-center border-collapse text-sm">
             <thead>
               <tr className="bg-emerald-900 text-white">
-                <th rowSpan={2} className="border border-emerald-800 px-4 py-3 font-black text-xs uppercase tracking-widest w-16">Sr.No.</th>
-                <th rowSpan={2} className="border border-emerald-800 px-4 py-3 font-black text-xs uppercase tracking-widest min-w-[150px]">Product Description</th>
-                <th rowSpan={2} className="border border-emerald-800 px-4 py-3 font-black text-xs uppercase tracking-widest min-w-[180px]">Width</th>
-                {lengths.map((len: any) => (
-                  <th key={len.id} colSpan={types.length} className="border border-emerald-800 px-4 py-3 font-black text-xs uppercase tracking-widest">
+                <th rowSpan={showTypeRow ? 2 : 1} className="border border-emerald-800 px-4 py-3 font-black text-xs uppercase tracking-widest w-16">Sr.No.</th>
+                <th rowSpan={showTypeRow ? 2 : 1} className="border border-emerald-800 px-4 py-3 font-black text-xs uppercase tracking-widest min-w-[150px]">Variant</th>
+                {showWidthCol && (
+                  <th rowSpan={showTypeRow ? 2 : 1} className="border border-emerald-800 px-4 py-3 font-black text-xs uppercase tracking-widest min-w-[180px]">Width</th>
+                )}
+                {activeLengths.map((len: any) => (
+                  <th
+                    key={len.id}
+                    colSpan={typeColCount}
+                    className="border border-emerald-800 px-4 py-3 font-black text-xs uppercase tracking-widest"
+                  >
                     {len.label}
                   </th>
                 ))}
               </tr>
-              <tr className="bg-emerald-800 text-emerald-100">
-                {lengths.map((len: any) =>
-                  types.map((type: any) => (
-                    <th key={`${len.id}-${type.id}`} className="border border-emerald-700/50 px-3 py-2 font-bold text-[10px] uppercase tracking-wider">
-                      {type.name}
-                    </th>
-                  ))
-                )}
-              </tr>
+              {showTypeRow && (
+                <tr className="bg-emerald-800 text-emerald-100">
+                  {activeLengths.map((len: any) =>
+                    activeTypes.map((type: any) => (
+                      <th key={`${len.id}-${type.id}`} className="border border-emerald-700/50 px-3 py-2 font-bold text-[10px] uppercase tracking-wider">
+                        {type.name}
+                      </th>
+                    ))
+                  )}
+                </tr>
+              )}
             </thead>
             <tbody className="bg-white">
               {filteredVariants.map((variant: any, vIdx: number) => {
-                const activeWidths = widths.filter((width: any) => 
-                  allPrices.some((p: any) => p.variantId === variant.id && p.widthId === width.id)
-                );
+                // Which widths does this variant actually use?
+                const variantPrices = productPrices.filter((p: any) => p.variantId === variant.id);
+                const variantWidthIds = new Set(variantPrices.map((p: any) => p.widthId));
+                const rowWidths = showWidthCol
+                  ? activeWidths.filter((w: any) => variantWidthIds.has(w.id))
+                  : [{ id: singleWidthId }]; // single N/A width, hidden
 
-                // If editing, we probably want to show widths that have prices, 
-                // plus maybe any width? For now, we stick to widths that have prices in the DB to avoid clutter.
-                if (activeWidths.length === 0) return null;
+                if (rowWidths.length === 0) return null;
 
-                return activeWidths.map((width: any, wIdx: number) => {
+                return rowWidths.map((width: any, wIdx: number) => {
                   const isFirstRow = wIdx === 0;
-                  const rowClass = (vIdx % 2 === 0) ? "bg-white" : "bg-gray-50/50";
-                  
+                  const rowClass   = vIdx % 2 === 0 ? "bg-white" : "bg-gray-50/50";
+
                   return (
                     <tr key={`${variant.id}-${width.id}`} className={`hover:bg-emerald-50/50 transition-colors ${rowClass}`}>
-                      <td className="border border-gray-200 px-2 py-2 font-medium text-gray-500">
-                        {srNo++}
-                      </td>
-                      
+                      <td className="border border-gray-200 px-2 py-2 font-medium text-gray-500">{srNo++}</td>
+
                       {isFirstRow && (
-                        <td 
-                          rowSpan={activeWidths.length} 
+                        <td
+                          rowSpan={rowWidths.length}
                           className="border border-gray-200 px-4 py-2 font-black text-emerald-800 bg-emerald-50/30 text-lg"
                         >
                           {variant.name}
                         </td>
                       )}
 
-                      <td className="border border-gray-200 px-4 py-2 font-bold text-gray-700 text-left">
-                        {width.label}
-                      </td>
+                      {showWidthCol && (
+                        <td className="border border-gray-200 px-4 py-2 font-bold text-gray-700 text-left">
+                          {width.label}
+                        </td>
+                      )}
 
-                      {lengths.map((len: any) =>
-                        types.map((type: any) => {
-                          const originalPrice = getPrice(variant.id, width.id, len.id, type.id);
-                          const key = `${variant.id}-${width.id}-${len.id}-${type.id}`;
-                          const currentVal = editedPrices[key] !== undefined ? editedPrices[key] : originalPrice;
+                      {activeLengths.map((len: any) => {
+                        const typesToRender = showTypeRow ? activeTypes : activeTypes; // always iterate types
+                        return typesToRender.map((type: any) => {
+                          const lookupWidthId = showWidthCol ? width.id : singleWidthId;
+                          const original = getPrice(variant.id, lookupWidthId, len.id, type.id);
+                          const key = makeKey(variant.id, lookupWidthId!, len.id, type.id);
+                          const current = editedPrices[key] !== undefined ? editedPrices[key] : original;
 
                           return (
                             <td key={`${len.id}-${type.id}`} className="border border-gray-200 px-2 py-2 font-medium text-gray-900">
                               {isEditing ? (
-                                <input 
+                                <input
                                   type="number"
-                                  value={currentVal || ""}
-                                  onChange={(e) => handlePriceChange(variant.id, width.id, len.id, type.id, e.target.value)}
-                                  className="w-16 px-1 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-bold text-emerald-700 bg-white"
+                                  value={current ?? ""}
+                                  onChange={(e) => handlePriceChange(variant.id, lookupWidthId!, len.id, type.id, e.target.value)}
+                                  className="w-20 px-1 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-bold text-emerald-700 bg-white"
                                 />
                               ) : (
-                                currentVal || "-"
+                                current != null ? `₹${current}` : <span className="text-gray-300">—</span>
                               )}
                             </td>
                           );
-                        })
-                      )}
+                        });
+                      })}
                     </tr>
                   );
                 });
@@ -233,21 +242,15 @@ const Catalogue = () => {
 
   const fetchData = () => {
     setLoading(true);
-    fetch("http://localhost:3000/api/products/catalogue")
-      .then((res) => res.json())
-      .then((d) => {
-        setData(d);
-        setLoading(false);
-      })
-      .catch((e) => {
-        console.error(e);
-        setLoading(false);
-      });
+    fetch("http://localhost:3000/api/products/catalogue", {
+      headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+    })
+      .then(res => res.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(e => { console.error(e); setLoading(false); });
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   if (loading && !data) {
     return (
@@ -270,13 +273,13 @@ const Catalogue = () => {
 
       <div>
         {products?.map((product: any) => (
-          <ProductTable 
+          <ProductTable
             key={product.id}
             product={product}
             allVariants={variants}
-            widths={widths}
-            lengths={lengths}
-            types={types}
+            allWidths={widths}
+            allLengths={lengths}
+            allTypes={types}
             allPrices={prices}
             onRefresh={fetchData}
           />
