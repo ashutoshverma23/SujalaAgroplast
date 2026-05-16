@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { UserCircle, Mail, Phone, Edit2, Loader2, CheckCircle, ShieldCheck, FileText } from "lucide-react";
+import { BACKEND_URL } from '../../config';
 
 
 export default function Profile() {
@@ -49,7 +50,7 @@ export default function Profile() {
     try {
       const token = localStorage.getItem("token");
       
-      const profileRes = await fetch("http://localhost:3000/api/users/me", {
+      const profileRes = await fetch(`${BACKEND_URL}/api/users/me`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (profileRes.ok) {
@@ -58,7 +59,7 @@ export default function Profile() {
         setProfileFormData({ name: data.name || "", email: data.email || "" });
       }
 
-      const kycRes = await fetch("http://localhost:3000/api/users/me/kyc", {
+      const kycRes = await fetch(`${BACKEND_URL}/api/users/me/kyc`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (kycRes.ok) {
@@ -115,7 +116,7 @@ export default function Profile() {
 
     setSavingProfile(true);
     try {
-      const res = await fetch("http://localhost:3000/api/users/me", {
+      const res = await fetch(`${BACKEND_URL}/api/users/me`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
@@ -140,7 +141,7 @@ export default function Profile() {
   const handleSaveKyc = async () => {
     setSavingKyc(true);
     try {
-      const res = await fetch("http://localhost:3000/api/users/me/kyc", {
+      const res = await fetch(`${BACKEND_URL}/api/users/me/kyc`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",

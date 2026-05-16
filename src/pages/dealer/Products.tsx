@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Loader2, ShoppingCart, CheckCircle, PackageSearch } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { BACKEND_URL } from '../../config';
 
 /**
  * ProductCard dynamically derives which selectors to show:
@@ -96,7 +97,7 @@ const ProductCard = ({ product, allVariants, allWidths, allLengths, allTypes, al
   const handleAddToCart = async () => {
     if (!finalPrice || quantity < 1) return;
     try {
-      const res = await fetch("http://localhost:3000/api/cart", {
+      const res = await fetch(`${BACKEND_URL}/api/cart`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -240,7 +241,7 @@ export default function Products({ onCartChange }: { onCartChange?: () => void }
   };
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/products/catalogue")
+    fetch(`${BACKEND_URL}/api/products/catalogue`)
       .then(res => res.json())
       .then(result => { setData(result); setLoading(false); })
       .catch(e => { console.error(e); setLoading(false); });

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Bell, Loader2 } from "lucide-react";
+import { BACKEND_URL } from '../../config';
 
 const NotificationItem = ({ id, title, message, createdAt, isRead, onRead }: any) => {
   return (
@@ -34,7 +35,7 @@ export default function Notifications() {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/notifications", {
+      const res = await fetch(`${BACKEND_URL}/api/notifications`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {
@@ -50,7 +51,7 @@ export default function Notifications() {
 
   const markAsRead = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/notifications/${id}/read`, {
+      const res = await fetch(`${BACKEND_URL}/api/notifications/${id}/read`, {
         method: "PUT",
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });

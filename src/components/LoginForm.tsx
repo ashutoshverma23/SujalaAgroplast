@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { Role } from "../constants/Role";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
+import { BACKEND_URL } from '../config';
 
 export default function LoginForm({ role, onSwitchToRegister }: { role: Role, onSwitchToRegister: () => void }) {
   const [mobile, setMobile] = useState("");
@@ -17,7 +18,7 @@ export default function LoginForm({ role, onSwitchToRegister }: { role: Role, on
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3000/api/auth/login", {
+      const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile, password, role }),

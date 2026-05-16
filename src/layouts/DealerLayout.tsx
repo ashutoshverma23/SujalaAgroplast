@@ -7,6 +7,7 @@ import Notifications from "../pages/dealer/Notifications";
 import { UserCircle, Menu, X, Sprout, UserCircle as UserCircleIcon, PackageSearch, ShoppingCart, PackageCheck, Bell, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { BACKEND_URL } from '../config';
 
 type DealerPage = "PROFILE" | "PRODUCTS" | "CART" | "ORDERS" | "NOTIFICATIONS";
 
@@ -35,7 +36,7 @@ export default function DealerLayout() {
   // Fetch cart count on mount, on page change, and every 30 s
   const fetchCartCount = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/cart", {
+      const res = await fetch(`${BACKEND_URL}/api/cart`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {
@@ -47,7 +48,7 @@ export default function DealerLayout() {
 
   const fetchNotifCount = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/notifications", {
+      const res = await fetch(`${BACKEND_URL}/api/notifications`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {

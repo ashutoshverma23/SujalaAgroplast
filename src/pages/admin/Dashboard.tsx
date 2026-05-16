@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import { BACKEND_URL } from '../../config';
 
 const StatsCard = ({ title, value, icon: Icon, trend, color }: any) => (
   <motion.div 
@@ -44,7 +45,7 @@ const HotSellingProducts = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("http://localhost:3000/api/orders/analytics/hot-selling", {
+        const res = await fetch(`${BACKEND_URL}/api/orders/analytics/hot-selling`, {
           headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
         });
         if (res.ok) {

@@ -3,6 +3,7 @@ import { Package, Clock, CheckCircle, Truck, Info, Check, X as XIcon, Loader2, E
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { motion, AnimatePresence } from "framer-motion";
+import { BACKEND_URL } from '../../config';
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -20,7 +21,7 @@ export default function AdminOrders() {
 
   const fetchDealers = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/users", {
+      const res = await fetch(`${BACKEND_URL}/api/users`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {
@@ -34,7 +35,7 @@ export default function AdminOrders() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/orders", {
+      const res = await fetch(`${BACKEND_URL}/api/orders`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {
@@ -51,7 +52,7 @@ export default function AdminOrders() {
   const fetchOrderDetails = async (orderId: string) => {
     setFetchingDetails(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/orders/${orderId}`, {
+      const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) return await res.json();
@@ -70,7 +71,7 @@ export default function AdminOrders() {
 
   const handleUpdatePayment = async (orderId: string, status: string) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/orders/${orderId}/payment-status`, {
+      const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}/payment-status`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
@@ -93,7 +94,7 @@ export default function AdminOrders() {
 
   const handleUpdateStatus = async (orderId: string, status: string) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/orders/${orderId}/status`, {
+      const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}/status`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",

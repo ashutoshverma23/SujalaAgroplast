@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { UserRound, Sprout, Map, Phone, Plus, Search, Loader2, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { BACKEND_URL } from '../../config';
 
 const Farmers = () => {
   const [farmers, setFarmers] = useState<any[]>([]);
@@ -65,7 +66,7 @@ const Farmers = () => {
 
   const fetchFarmers = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/farmers", {
+      const res = await fetch(`${BACKEND_URL}/api/farmers`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {
@@ -91,7 +92,7 @@ const Farmers = () => {
     const cropsArray = formData.cropsInput.split(",").map(c => c.trim()).filter(c => c);
 
     try {
-      const res = await fetch("http://localhost:3000/api/farmers", {
+      const res = await fetch(`${BACKEND_URL}/api/farmers`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

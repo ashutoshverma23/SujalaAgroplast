@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Role } from "../constants/Role";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
+import { BACKEND_URL } from '../config';
 
 export default function RegisterForm({ role, onSwitchToLogin }: { role: Role, onSwitchToLogin: () => void }) {
   const [name, setName] = useState("");
@@ -18,7 +19,7 @@ export default function RegisterForm({ role, onSwitchToLogin }: { role: Role, on
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3000/api/auth/register", {
+      const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, mobile, password, role }),

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Store, MapPin, Phone, ExternalLink, Plus, X, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { BACKEND_URL } from '../../config';
 
 const StoreCard = ({ name, location, contact, type, status }: any) => (
   <motion.div 
@@ -105,7 +106,7 @@ const Stores = () => {
 
   const fetchStores = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/stores", {
+      const res = await fetch(`${BACKEND_URL}/api/stores`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {
@@ -127,7 +128,7 @@ const Stores = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("http://localhost:3000/api/stores", {
+      const res = await fetch(`${BACKEND_URL}/api/stores`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

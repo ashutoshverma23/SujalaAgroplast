@@ -10,6 +10,7 @@ import Catalogue from "../pages/admin/Catalogue";
 import { Search, UserCircle, Bell, Menu, X, Sprout, LayoutDashboard, Users as UsersIcon, Store, UserRound, PackageSearch, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { BACKEND_URL } from '../config';
 
 export type AdminPage =
   | "DASHBOARD"
@@ -45,7 +46,7 @@ export default function AdminLayout() {
   useEffect(() => {
     const fetchUnread = async () => {
       try {
-        const res = await fetch("http://localhost:3000/api/notifications", {
+        const res = await fetch(`${BACKEND_URL}/api/notifications`, {
           headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
         });
         if (res.ok) {

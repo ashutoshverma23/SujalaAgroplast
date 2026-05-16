@@ -3,6 +3,7 @@ import { Calendar, Package, Clock, CheckCircle, Truck, IndianRupee, Loader2, Inf
 import { motion, AnimatePresence } from "framer-motion";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { BACKEND_URL } from '../../config';
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -21,7 +22,7 @@ export default function Orders() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/orders", {
+      const res = await fetch(`${BACKEND_URL}/api/orders`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {
@@ -41,7 +42,7 @@ export default function Orders() {
     setSavingPayment(true);
 
     try {
-      const res = await fetch(`http://localhost:3000/api/orders/${selectedOrder.id}/mark-paid`, {
+      const res = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder.id}/mark-paid`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -67,7 +68,7 @@ export default function Orders() {
   const fetchOrderDetails = async (orderId: number) => {
     setFetchingDetails(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/orders/${orderId}`, {
+      const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {

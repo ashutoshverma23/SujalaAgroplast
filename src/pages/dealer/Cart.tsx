@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
 import type { DealerPage } from "../../components/sidebar/DealerSidebar";
+import { BACKEND_URL } from '../../config';
 
 export default function Cart({ setPage }: { setPage: (p: DealerPage) => void }) {
   const [items, setItems] = useState<any[]>([]);
@@ -9,7 +10,7 @@ export default function Cart({ setPage }: { setPage: (p: DealerPage) => void }) 
 
   const fetchCart = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/cart", {
+      const res = await fetch(`${BACKEND_URL}/api/cart`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       const data = await res.json();
@@ -40,7 +41,7 @@ export default function Cart({ setPage }: { setPage: (p: DealerPage) => void }) 
     setItems(items.map(i => i.id === id ? { ...i, quantity: newQty } : i));
     
     try {
-      await fetch(`http://localhost:3000/api/cart/${id}`, {
+      await fetch(`${BACKEND_URL}/api/cart/${id}`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
@@ -56,7 +57,7 @@ export default function Cart({ setPage }: { setPage: (p: DealerPage) => void }) 
   const removeItem = async (id: number) => {
     setItems(items.filter(i => i.id !== id));
     try {
-      await fetch(`http://localhost:3000/api/cart/${id}`, {
+      await fetch(`${BACKEND_URL}/api/cart/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
@@ -68,7 +69,7 @@ export default function Cart({ setPage }: { setPage: (p: DealerPage) => void }) 
   const handleCheckout = async () => {
     setCheckingOut(true);
     try {
-      const res = await fetch("http://localhost:3000/api/orders", {
+      const res = await fetch(`${BACKEND_URL}/api/orders`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });

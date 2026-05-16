@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2, Edit3, Save, X } from "lucide-react";
+import { BACKEND_URL } from '../../config';
 
 /**
  * For each product we derive the exact set of widths / lengths / types
@@ -65,7 +66,7 @@ const ProductTable = ({ product, allVariants, allWidths, allLengths, allTypes, a
     if (updates.length === 0) { setIsEditing(false); setIsSaving(false); return; }
 
     try {
-      const res = await fetch("http://localhost:3000/api/products/catalogue", {
+      const res = await fetch(`${BACKEND_URL}/api/products/catalogue`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -242,7 +243,7 @@ const Catalogue = () => {
 
   const fetchData = () => {
     setLoading(true);
-    fetch("http://localhost:3000/api/products/catalogue", {
+    fetch(`${BACKEND_URL}/api/products/catalogue`, {
       headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
     })
       .then(res => res.json())

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Filter, Plus, Edit, Trash2, Loader2, X, CheckCircle, XCircle, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { BACKEND_URL } from '../../config';
 
 export default function Users() {
   const [users, setUsers] = useState<any[]>([]);
@@ -28,7 +29,7 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/users", {
+      const res = await fetch(`${BACKEND_URL}/api/users`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {
@@ -50,7 +51,7 @@ export default function Users() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("http://localhost:3000/api/users", {
+      const res = await fetch(`${BACKEND_URL}/api/users`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -76,7 +77,7 @@ export default function Users() {
 
   const handleUpdateStatus = async (id: number, newStatus: string) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/users/${id}/status`, {
+      const res = await fetch(`${BACKEND_URL}/api/users/${id}/status`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
@@ -103,7 +104,7 @@ export default function Users() {
     });
 
     try {
-      const res = await fetch(`http://localhost:3000/api/users/${userId}/kyc`, {
+      const res = await fetch(`${BACKEND_URL}/api/users/${userId}/kyc`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
       if (res.ok) {
@@ -126,7 +127,7 @@ export default function Users() {
     if (!selectedUserId) return;
     setSaving(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/users/${selectedUserId}/kyc`, {
+      const res = await fetch(`${BACKEND_URL}/api/users/${selectedUserId}/kyc`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
