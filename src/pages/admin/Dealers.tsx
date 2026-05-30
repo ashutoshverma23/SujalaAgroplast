@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Plus, Edit, Trash2, Loader2, X, CheckCircle, XCircle, Clock, Key } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Loader2, X, CheckCircle, XCircle, Clock, Key } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from '../../config';
 

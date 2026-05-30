@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 import { Calendar, Package, Clock, CheckCircle, Truck, IndianRupee, Loader2, Info, X, Eye, Download, FileText, Receipt } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import type { DealerPage } from "../../components/sidebar/DealerSidebar";
 import { BACKEND_URL } from '../../config';
-import { getGstBreakdown } from "../../utils/gst";
 import { generateInvoicePDF } from "../../utils/pdfGenerator";
 
 export default function Orders() {

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Package, Clock, CheckCircle, Truck, Info, Check, X as XIcon, Loader2, Eye, Calendar, IndianRupee, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from '../../config';
-import { getGstBreakdown } from "../../utils/gst";
 import { generateInvoicePDF } from "../../utils/pdfGenerator";
 
 export default function AdminOrders() {
