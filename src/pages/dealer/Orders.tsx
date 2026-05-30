@@ -3,7 +3,10 @@ import { Calendar, Package, Clock, CheckCircle, Truck, IndianRupee, Loader2, Inf
 import { motion, AnimatePresence } from "framer-motion";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import type { DealerPage } from "../../components/sidebar/DealerSidebar";
 import { BACKEND_URL } from '../../config';
+import { getGstBreakdown } from "../../utils/gst";
+import { generateInvoicePDF } from "../../utils/pdfGenerator";
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -15,6 +18,11 @@ export default function Orders() {
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [paymentRef, setPaymentRef] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
+
+  // Edit order modal state
+  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [editItems, setEditItems] = useState<any[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -95,64 +103,7 @@ export default function Orders() {
   };
 
   const handleDownloadInvoice = (details: any) => {
-    const doc = new jsPDF();
-    const primaryColor: [number, number, number] = [16, 185, 129];
-
-    doc.setFillColor(249, 250, 251);
-    doc.rect(0, 0, 210, 40, 'F');
-    doc.setTextColor(31, 41, 55);
-    doc.setFontSize(24);
-    doc.setFont("helvetica", "bold");
-    doc.text("INVOICE", 105, 25, { align: "center" });
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text("SUJALA AGRO INDUSTRIES", 20, 50);
-    doc.text("Quality Mulching Solutions", 20, 55);
-    doc.text(`Order ID: ORD-${details.id.slice(0, 8).toUpperCase()}`, 140, 50);
-    doc.text(`Date: ${new Date(details.orderDate).toLocaleDateString('en-GB')}`, 140, 55);
-    doc.text(`Status: ${details.status}`, 140, 60);
-
-    doc.setDrawColor(229, 231, 235);
-    doc.line(20, 70, 190, 70);
-
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Payment Information", 20, 80);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Payment Status: ${details.paymentStatus}`, 20, 90);
-    doc.text(`Transaction ID: ${details.paymentReference || 'N/A'}`, 20, 95);
-
-    const tableData = details.items.map((item: any) => [
-      `${item.productName} - ${item.variantName}`,
-      `${item.width} x ${item.length}`,
-      item.type,
-      item.quantity,
-      `INR ${item.unitPrice}`,
-      `INR ${item.quantity * item.unitPrice}`
-    ]);
-
-    autoTable(doc, {
-      startY: 105,
-      head: [['Product Details', 'Size', 'Type', 'Qty', 'Unit Price', 'Total']],
-      body: tableData,
-      headStyles: { fillColor: primaryColor, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [249, 250, 251] as [number, number, number] },
-    });
-
-    const finalY = (doc as any).lastAutoTable?.finalY ?? 150;
-    const total = details.totalAmount || details.items.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0);
-
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Grand Total: INR ${total}`, 190, finalY + 15, { align: "right" });
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(156, 163, 175);
-    doc.text("This is a computer generated invoice.", 105, 280, { align: "center" });
-
-    doc.save(`Invoice_ORD_${details.id.slice(0, 8).toUpperCase()}.pdf`);
+    generateInvoicePDF(details);
   };
 
   const StatusIcon = ({ status }: { status: string }) => {
@@ -165,18 +116,104 @@ export default function Orders() {
     }
   };
 
+  const handleEditOrder = async (order: any) => {
+    const details = await fetchOrderDetails(order.id);
+    if (details) {
+      setEditingOrder(details);
+      setEditItems(details.items.map((item: any) => ({ ...item })));
+    }
+  };
+
+  const handleEditItemChange = (idx: number, field: string, value: any) => {
+    setEditItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  };
+
+  const handleRemoveEditItem = (idx: number) => {
+    setEditItems(items => items.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveEditOrder = async () => {
+    if (!editingOrder) return;
+    setSavingEdit(true);
+    try {
+      const payload = {
+        items: editItems.map(item => ({ id: item.id, priceId: item.priceId, quantity: Number(item.quantity) }))
+      };
+      const res = await fetch(`${BACKEND_URL}/api/orders/${editingOrder.id}/edit`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        setEditingOrder(null);
+        setEditItems([]);
+        fetchOrders();
+      } else {
+        alert("Failed to update order");
+      }
+    } catch (e) {
+      alert("Error updating order");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleUpdatePaymentTerms = async (orderId: string, paymentTerms: string) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}/payment-terms`, {
+        method: "PUT",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ paymentTerms })
+      });
+      if (res.ok) {
+        setOrders(orders.map(o => o.id === orderId ? { ...o, paymentTerms } : o));
+        if (viewingOrder?.id === orderId) {
+          setViewingOrder({ ...viewingOrder, paymentTerms });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const PaymentTermsEditor = ({ order, onSave }: { order: any, onSave: (id: string, text: string) => void }) => {
+    const [text, setText] = useState(order.paymentTerms || "");
+    return (
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Payment Terms (Comment)</p>
+        <input 
+          type="text" 
+          value={text} 
+          onChange={e => setText(e.target.value)} 
+          onBlur={() => text !== (order.paymentTerms || "") && onSave(order.id, text)}
+          placeholder="e.g. Payment on delivery, advance"
+          className="text-xs w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none text-gray-700 font-medium"
+        />
+      </div>
+    );
+  };
+
   const OrderCard = ({ order }: { order: any }) => (
     <div className="bg-white border border-gray-100 rounded-[2rem] p-6 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group relative">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-4">
-          <div className="p-4 rounded-2xl bg-gray-50">
+          <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
             <StatusIcon status={order.status} />
           </div>
           <div>
             <h4 className="font-black text-gray-900 text-lg">ORD-{order.id.slice(0, 8).toUpperCase()}</h4>
-            <p className="text-sm font-bold text-gray-400 flex items-center gap-2 mt-1">
+            <p className="text-sm font-bold text-gray-500 flex items-center gap-2 mt-1">
               <Calendar size={14} />
               {new Date(order.orderDate).toLocaleDateString('en-GB')}
+            </p>
+            <p className="text-sm font-black text-emerald-600 mt-1 bg-emerald-50 px-3 py-1 rounded-lg inline-block border border-emerald-100">
+              Dealer: {localStorage.getItem('userName') || 'You'}
             </p>
           </div>
         </div>
@@ -198,6 +235,9 @@ export default function Orders() {
         </div>
       </div>
       
+      <PaymentTermsEditor order={order} onSave={handleUpdatePaymentTerms} />
+
+
       {order.paymentStatus === 'Pending' && (
         <div className="mt-4 p-4 bg-rose-50 rounded-xl border border-rose-100">
           <div className="flex items-start gap-3">
@@ -234,12 +274,80 @@ export default function Orders() {
           <Receipt size={14} />
           Invoice
         </button>
+        {order.status === 'Pending' && (
+          <button
+            onClick={() => handleEditOrder(order)}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-xl hover:bg-blue-100 transition-colors border border-blue-100"
+          >
+            Edit Order
+          </button>
+        )}
+
       </div>
     </div>
   );
 
   return (
     <div className="space-y-8 relative">
+            {/* Edit Order Modal (moved to root) */}
+            <AnimatePresence>
+              {editingOrder && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden"
+                  >
+                    <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="text-xl font-bold text-gray-900">Edit Order</h3>
+                      <button onClick={() => setEditingOrder(null)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      {editItems.length === 0 ? (
+                        <div className="text-center text-gray-500">No items in order.</div>
+                      ) : (
+                        <div className="space-y-3">
+                          {editItems.map((item, idx) => (
+                            <div key={item.id} className="flex items-center gap-4 border-b pb-3">
+                              <div className="flex-1">
+                                <div className="font-bold text-gray-900">{item.productName}</div>
+                                <div className="text-xs text-gray-500">{item.variantName} • {item.width} • {item.length} • {item.type}</div>
+                              </div>
+                              <input
+                                type="number"
+                                min={1}
+                                value={item.quantity}
+                                onChange={e => handleEditItemChange(idx, 'quantity', e.target.value)}
+                                className="w-20 px-2 py-1 border border-gray-200 rounded-lg text-sm text-gray-900"
+                              />
+                              <button
+                                onClick={() => handleRemoveEditItem(idx)}
+                                className="ml-2 px-2 py-1 text-xs text-rose-600 font-bold border border-rose-100 rounded-lg hover:bg-rose-50"
+                              >Remove</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50">
+                      <button type="button" onClick={() => setEditingOrder(null)} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">Cancel</button>
+                      <button
+                        type="button"
+                        disabled={savingEdit || editItems.length === 0}
+                        onClick={handleSaveEditOrder}
+                        className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2"
+                      >
+                        {savingEdit && <Loader2 size={16} className="animate-spin" />}
+                        Save Changes
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h3 className="text-3xl font-black text-gray-900 tracking-tight">Your Orders</h3>
       </div>

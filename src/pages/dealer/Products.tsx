@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Loader2, ShoppingCart, CheckCircle, PackageSearch } from "lucide-react";
+import { Search, Loader2, ShoppingCart, CheckCircle, PackageSearch, Minus, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from '../../config';
 
@@ -10,7 +10,9 @@ import { BACKEND_URL } from '../../config';
  * This keeps the UI clean for Rain Pipe / Drip products vs Mulch Film.
  */
 const ProductCard = ({ product, allVariants, allWidths, allLengths, allTypes, allPrices, onCartChange, onAddToCartSuccess }: any) => {
-  const variants = allVariants.filter((v: any) => v.productId === product.id);
+  const variants = allVariants
+    .filter((v: any) => v.productId === product.id)
+    .sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
 
   // ── Derive per-product active dimensions ───────────────────────────────
   const productPrices = allPrices.filter((p: any) =>
@@ -36,7 +38,7 @@ const ProductCard = ({ product, allVariants, allWidths, allLengths, allTypes, al
   const [widthId,   setWidthId]   = useState<string>("");
   const [lengthId,  setLengthId]  = useState<string>("");
   const [typeId,    setTypeId]    = useState<string>("");
-  const [quantity,  setQuantity]  = useState<number>(1);
+  const [quantity,  setQuantity]  = useState<number | string>(1);
   const [added,     setAdded]     = useState(false);
 
   // ── Cascading filter logic ─────────────────────────────────────────────
@@ -95,7 +97,8 @@ const ProductCard = ({ product, allVariants, allWidths, allLengths, allTypes, al
 
   // ── Add to cart ────────────────────────────────────────────────────────
   const handleAddToCart = async () => {
-    if (!finalPrice || quantity < 1) return;
+    const q = Number(quantity);
+    if (!finalPrice || isNaN(q) || q < 1) return;
     try {
       const res = await fetch(`${BACKEND_URL}/api/cart`, {
         method: "POST",
@@ -103,11 +106,11 @@ const ProductCard = ({ product, allVariants, allWidths, allLengths, allTypes, al
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
-        body: JSON.stringify({ priceId: finalPrice.id, quantity })
+        body: JSON.stringify({ priceId: finalPrice.id, quantity: q })
       });
       if (res.ok) {
         setAdded(true);
-        onAddToCartSuccess?.(product.name, quantity);
+        onAddToCartSuccess?.(product.name, q);
         setQuantity(1);
         onCartChange?.(); // immediately refresh badge count in header
         setTimeout(() => setAdded(false), 2000);
@@ -194,21 +197,46 @@ const ProductCard = ({ product, allVariants, allWidths, allLengths, allTypes, al
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Unit Price</p>
               {finalPrice ? (
-                <p className="text-3xl font-black text-emerald-600">₹{finalPrice.price}</p>
+                <div>
+                  <p className="text-3xl font-black text-emerald-600">₹{finalPrice.price}</p>
+                  <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest mt-1">
+                    (Incl. {product.category === 'Mulch Film' ? '18%' : '5%'} GST)
+                  </p>
+                </div>
               ) : (
                 <p className="text-lg font-bold text-gray-400">Select options</p>
               )}
             </div>
-            <div className="w-24">
+            <div className="w-32">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Qty</label>
-              <input
-                type="number"
-                min="1"
-                value={quantity}
-                onChange={e => setQuantity(Math.max(1, Number(e.target.value)))}
-                disabled={!finalPrice}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-center outline-none focus:ring-2 focus:ring-emerald-500 text-lg font-black text-gray-900 disabled:opacity-50 transition-shadow"
-              />
+              <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 transition-shadow">
+                <button
+                  type="button"
+                  disabled={!finalPrice || Number(quantity) <= 1}
+                  onClick={() => setQuantity(prev => Math.max(1, Number(prev) - 1))}
+                  className="px-3 py-3 text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-colors outline-none"
+                >
+                  <Minus size={16} />
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={e => setQuantity(e.target.value === "" ? "" : Number(e.target.value))}
+                  onBlur={() => setQuantity(prev => Math.max(1, Number(prev) || 1))}
+                  disabled={!finalPrice}
+                  className="w-full bg-transparent text-center outline-none text-lg font-black text-gray-900 disabled:opacity-50"
+                  style={{ MozAppearance: 'textfield' }} // hide arrows in firefox
+                />
+                <button
+                  type="button"
+                  disabled={!finalPrice}
+                  onClick={() => setQuantity(prev => (Number(prev) || 0) + 1)}
+                  className="px-3 py-3 text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-colors outline-none"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
             </div>
           </div>
           <button
@@ -252,10 +280,12 @@ export default function Products({ onCartChange }: { onCartChange?: () => void }
   }
 
   const { products, variants, lengths, widths, types, prices } = data;
-  const filteredProducts = products.filter((p: any) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.category.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredProducts = products
+    .filter((p: any) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.category.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
 
   // Group products by category for a cleaner layout
   const categories = [...new Set(filteredProducts.map((p: any) => p.category))] as string[];

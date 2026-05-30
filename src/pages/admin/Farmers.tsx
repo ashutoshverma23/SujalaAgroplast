@@ -14,6 +14,7 @@ const Farmers = () => {
     name: "",
     location: "",
     contact: "",
+    dob: "",
     cropsInput: "",
     landSize: "",
     remark: "",
@@ -102,6 +103,7 @@ const Farmers = () => {
           name: formData.name,
           location: formData.location,
           contact: formData.contact,
+          dob: formData.dob,
           crops: cropsArray,
           landSize: formData.landSize,
           remark: formData.remark,
@@ -114,7 +116,7 @@ const Farmers = () => {
 
       if (res.ok) {
         setIsModalOpen(false);
-        setFormData({ name: "", location: "", contact: "", cropsInput: "", landSize: "", remark: "", base64Image: "", geotagLat: null, geotagLng: null, geotagTimestamp: null });
+        setFormData({ name: "", location: "", contact: "", dob: "", cropsInput: "", landSize: "", remark: "", base64Image: "", geotagLat: null, geotagLng: null, geotagTimestamp: null });
         fetchFarmers();
       } else {
         const d = await res.json();
@@ -196,6 +198,11 @@ const Farmers = () => {
                   <p className="text-sm font-bold text-gray-700">{farmer.landSize || "N/A"}</p>
                 </div>
 
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Date of Birth</p>
+                  <p className="text-sm font-bold text-gray-700">{farmer.dob ? new Date(farmer.dob).toLocaleDateString('en-GB') : "N/A"}</p>
+                </div>
+
                 <button className="p-3 bg-gray-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all">
                   <Phone size={20} />
                 </button>
@@ -241,6 +248,10 @@ const Farmers = () => {
                     <label className="text-sm font-semibold text-gray-700 block mb-1">Contact</label>
                     <input type="text" value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="+91 9876543210" />
                   </div>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 block mb-1">Date of Birth</label>
+                  <input type="date" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-1">Crops Cultivated (Comma separated)</label>

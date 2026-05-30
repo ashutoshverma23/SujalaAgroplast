@@ -3,10 +3,12 @@ import Sidebar from "../components/sidebar/AdminSidebar";
 import Dashboard from "../pages/admin/Dashboard";
 import AdminOrders from "../pages/admin/Orders";
 import Users from "../pages/admin/Users";
+import Dealers from "../pages/admin/Dealers";
 import Stores from "../pages/admin/Stores";
 import Farmers from "../pages/admin/Farmers";
 import Notifications from "../pages/admin/Notifications";
 import Catalogue from "../pages/admin/Catalogue";
+import Discounts from "../pages/admin/Discounts";
 import { Search, UserCircle, Bell, Menu, X, Sprout, LayoutDashboard, Users as UsersIcon, Store, UserRound, PackageSearch, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -16,16 +18,20 @@ export type AdminPage =
   | "DASHBOARD"
   | "ORDERS"
   | "USERS"
+  | "DEALERS"
   | "STORES"
   | "FARMERS"
   | "CATALOGUE"
+  | "DISCOUNTS"
   | "NOTIFICATIONS";
 
 const menuItems: { label: string; key: AdminPage; icon: any }[] = [
   { label: "Dashboard", key: "DASHBOARD", icon: LayoutDashboard },
   { label: "Orders", key: "ORDERS", icon: PackageSearch },
   { label: "Product Catalogue", key: "CATALOGUE", icon: PackageSearch },
+  { label: "Discounts", key: "DISCOUNTS", icon: Store },
   { label: "User Management", key: "USERS", icon: UsersIcon },
+  { label: "Dealers", key: "DEALERS", icon: Store },
   { label: "Store Details", key: "STORES", icon: Store },
   { label: "Farmer Details", key: "FARMERS", icon: UserRound },
   { label: "Notifications", key: "NOTIFICATIONS", icon: Bell },
@@ -65,9 +71,11 @@ export default function AdminLayout() {
       case "DASHBOARD": return <Dashboard />;
       case "ORDERS": return <AdminOrders />;
       case "USERS": return <Users />;
+      case "DEALERS": return <Dealers />;
       case "STORES": return <Stores />;
       case "FARMERS": return <Farmers />;
       case "CATALOGUE": return <Catalogue />;
+      case "DISCOUNTS": return <Discounts />;
       case "NOTIFICATIONS": return <Notifications />;
       default: return <Dashboard />;
     }

@@ -10,8 +10,17 @@ export default function Profile() {
   
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileFormData, setProfileFormData] = useState({ name: "", email: "" });
+  const [profileFormData, setProfileFormData] = useState({ 
+    name: "", 
+    email: "",
+    profilePhotoUrl: "",
+    geotagLat: null as number | null,
+    geotagLng: null as number | null,
+    geotagTimestamp: null as string | null
+  });
   const [lastEdited, setLastEdited] = useState<string | null>(localStorage.getItem("lastProfileEdit"));
+  
+  const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
 
   const [isEditingKyc, setIsEditingKyc] = useState(false);
   const [savingKyc, setSavingKyc] = useState(false);
@@ -56,7 +65,14 @@ export default function Profile() {
       if (profileRes.ok) {
         const data = await profileRes.json();
         setProfile(data);
-        setProfileFormData({ name: data.name || "", email: data.email || "" });
+        setProfileFormData({ 
+          name: data.name || "", 
+          email: data.email || "",
+          profilePhotoUrl: data.profilePhotoUrl || "",
+          geotagLat: data.geotagLat || null,
+          geotagLng: data.geotagLng || null,
+          geotagTimestamp: data.geotagTimestamp || null
+        });
       }
 
       const kycRes = await fetch(`${BACKEND_URL}/api/users/me/kyc`, {
@@ -138,6 +154,66 @@ export default function Profile() {
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUpdatingPhoto(true);
+    try {
+      let lat = null;
+      let lng = null;
+      
+      // Try getting geolocation
+      if ("geolocation" in navigator) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+          });
+          lat = position.coords.latitude;
+          lng = position.coords.longitude;
+        } catch (geoErr) {
+          console.warn("Geolocation failed", geoErr);
+          alert("Could not fetch geolocation. Photo will be saved without location tag.");
+        }
+      }
+
+      // Mock URL to avoid huge Base64 strings until S3 bucket is ready
+      const mockUrl = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&q=80";
+
+      const newFormData = {
+        ...profileFormData,
+        profilePhotoUrl: mockUrl,
+        geotagLat: lat,
+        geotagLng: lng,
+        geotagTimestamp: new Date().toISOString()
+      };
+
+      setProfileFormData(newFormData);
+
+      // Instantly save to backend
+      const res = await fetch(`${BACKEND_URL}/api/users/me`, {
+        method: "PUT",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify(newFormData)
+      });
+
+      if (res.ok) {
+        setProfile({ ...profile, ...newFormData });
+      } else {
+        alert("Failed to save photo metadata on the server.");
+      }
+      setIsUpdatingPhoto(false);
+      // Clear input so we can upload same file again if needed
+      e.target.value = "";
+    } catch (err) {
+      console.error(err);
+      setIsUpdatingPhoto(false);
+    }
+  };
+
   const handleSaveKyc = async () => {
     setSavingKyc(true);
     try {
@@ -172,9 +248,25 @@ export default function Profile() {
         <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-emerald-500 to-green-400"></div>
         
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-end gap-6 mt-12">
-          <div className="w-32 h-32 rounded-3xl bg-white p-2 shadow-xl shadow-emerald-500/10">
-            <div className="w-full h-full bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
-              <UserCircle size={64} />
+          <div className="w-32 h-32 rounded-3xl bg-white p-2 shadow-xl shadow-emerald-500/10 relative group">
+            <div className="w-full h-full bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 overflow-hidden relative">
+              {profile?.profilePhotoUrl ? (
+                <img src={profile.profilePhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <UserCircle size={64} />
+              )}
+              
+              <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-2xl">
+                {isUpdatingPhoto ? (
+                  <Loader2 size={24} className="animate-spin" />
+                ) : (
+                  <>
+                    <Edit2 size={24} className="mb-1" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-center px-2">Update Photo<br/>+ Geotag</span>
+                  </>
+                )}
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} disabled={isUpdatingPhoto} />
+              </label>
             </div>
           </div>
           <div className="flex-1">
@@ -252,6 +344,19 @@ export default function Profile() {
                 <span className={`text-lg font-semibold ${profile?.status === 'APPROVED' ? 'text-emerald-700' : 'text-orange-700'}`}>{profile?.status}</span>
               </div>
             </div>
+
+            {profile?.geotagLat && profile?.geotagLng && (
+              <div>
+                <label className="text-sm font-bold text-gray-400 uppercase tracking-widest block mb-2">Profile Geotag</label>
+                <div className="text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  <p className="text-sm font-bold font-mono">Lat: {profile.geotagLat}</p>
+                  <p className="text-sm font-bold font-mono">Lng: {profile.geotagLng}</p>
+                  {profile.geotagTimestamp && (
+                    <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-widest">Captured at: {new Date(profile.geotagTimestamp).toLocaleString()}</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -385,19 +490,35 @@ export default function Profile() {
               <p className="text-sm font-semibold text-gray-900">{profile?.email || '-'}</p>
             </div>
             <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Aadhar No</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.aadhar} onChange={e => setKycFormData({...kycFormData, aadhar: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.aadhar || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">PAN No</label>
+              {isEditingKyc ? (
+                <input type="text" value={kycFormData.pan} onChange={e => setKycFormData({...kycFormData, pan: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.pan || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Date of Birth</label>
+              {isEditingKyc ? (
+                <input type="date" value={kycFormData.dob} onChange={e => setKycFormData({...kycFormData, dob: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <p className="text-sm font-semibold text-gray-900">{kyc?.dob ? new Date(kyc.dob).toLocaleDateString('en-GB') : '-'}</p>
+              )}
+            </div>
+            <div>
               <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">GSTN.</label>
               {isEditingKyc ? (
                 <input type="text" value={kycFormData.gstin} onChange={e => setKycFormData({...kycFormData, gstin: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
               ) : (
                 <p className="text-sm font-semibold text-gray-900 uppercase">{kyc?.gstin || '-'}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">PAN. No</label>
-              {isEditingKyc ? (
-                <input type="text" value={kycFormData.pan} onChange={e => setKycFormData({...kycFormData, pan: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
-              ) : (
-                <p className="text-sm font-semibold text-gray-900 uppercase">{kyc?.pan || '-'}</p>
               )}
             </div>
             <div>

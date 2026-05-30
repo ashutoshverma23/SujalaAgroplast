@@ -3,12 +3,13 @@ import { Search, Filter, Plus, Edit, Trash2, Loader2, X, CheckCircle, XCircle, C
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from '../../config';
 
-export default function Users() {
+export default function Dealers() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -181,9 +182,14 @@ export default function Users() {
   };
 
   const filteredUsers = users.filter(u => 
-    u.name?.toLowerCase().includes(search.toLowerCase()) || 
-    u.mobile?.includes(search)
+    u.role === "DEALER" &&
+    (u.name?.toLowerCase().includes(search.toLowerCase()) || 
+     u.mobile?.includes(search)) &&
+    (stateFilter === "" || u.state?.toLowerCase() === stateFilter.toLowerCase())
   );
+
+  // Extract unique states from the users array
+  const uniqueStates = Array.from(new Set(users.filter(u => u.role === "DEALER" && u.state).map(u => u.state)));
 
   return (
     <div className="space-y-6 relative">
@@ -199,10 +205,16 @@ export default function Users() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            <Filter size={18} />
-            <span>Filter</span>
-          </button>
+          <select
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-600 outline-none hover:bg-gray-50 transition-all cursor-pointer shadow-sm focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500"
+          >
+            <option value="">All States</option>
+            {uniqueStates.map(state => (
+              <option key={state as string} value={state as string}>{state as string}</option>
+            ))}
+          </select>
           <button 
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all"
@@ -235,6 +247,11 @@ export default function Users() {
                   <tr key={user.id} className="hover:bg-emerald-50/30 transition-colors">
                     <td className="px-6 py-4 border-r border-gray-200">
                       <p className="font-bold text-gray-900">{user.name}</p>
+                      {user.dealerId && <p className="text-xs font-bold text-emerald-600 mt-0.5">{user.dealerId}</p>}
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {user.state || "No State Info"}
+                        {user.dob ? ` • DOB: ${new Date(user.dob).toLocaleDateString()}` : ""}
+                      </p>
                     </td>
                     <td className="px-6 py-4 border-r border-gray-200">
                       <p className="font-medium text-gray-700">{user.mobile}</p>
@@ -401,6 +418,10 @@ export default function Users() {
                         <div>
                           <label className="text-xs font-bold text-gray-500 uppercase block mb-1">PAN</label>
                           <input type="text" value={editKycFormData.pan} onChange={e => setEditKycFormData({...editKycFormData, pan: e.target.value})} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none uppercase" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Date of Birth</label>
+                          <input type="date" value={editKycFormData.dob} onChange={e => setEditKycFormData({...editKycFormData, dob: e.target.value})} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
                         </div>
                       </div>
                     </div>

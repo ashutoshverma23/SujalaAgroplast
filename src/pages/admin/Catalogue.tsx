@@ -15,8 +15,14 @@ const ProductTable = ({ product, allVariants, allWidths, allLengths, allTypes, a
   const [isSaving, setIsSaving] = useState(false);
   const [editedPrices, setEditedPrices] = useState<Record<string, number>>({});
   const [activeFilter, setActiveFilter] = useState("ALL");
+  
+  const [isEditingGst, setIsEditingGst] = useState(false);
+  const [gstRate, setGstRate] = useState<number>(product.gstRate ?? (product.category === 'Mulch Film' ? 18 : 5));
+  const [isSavingGst, setIsSavingGst] = useState(false);
 
-  const variants = allVariants.filter((v: any) => v.productId === product.id);
+  const variants = allVariants
+    .filter((v: any) => v.productId === product.id)
+    .sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
 
   // ── Derive the exact dimensions used by this product ─────────────────────
   const productPrices = allPrices.filter((p: any) =>
@@ -80,6 +86,23 @@ const ProductTable = ({ product, allVariants, allWidths, allLengths, allTypes, a
     finally { setIsSaving(false); }
   };
 
+  const handleSaveGst = async () => {
+    setIsSavingGst(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/products/${product.id}/gst`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ gstRate }),
+      });
+      if (res.ok) { setIsEditingGst(false); onRefresh(); }
+      else { console.error("Failed to save GST"); }
+    } catch (e) { console.error(e); }
+    finally { setIsSavingGst(false); }
+  };
+
   const filteredVariants = activeFilter === "ALL"
     ? variants
     : variants.filter((v: any) => v.id === activeFilter);
@@ -98,7 +121,33 @@ const ProductTable = ({ product, allVariants, allWidths, allLengths, allTypes, a
     <div className="space-y-4 mb-12">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-2xl font-black text-gray-900 tracking-tight">{product.name}</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-2xl font-black text-gray-900 tracking-tight">{product.name}</h3>
+            {isEditingGst ? (
+              <div className="flex items-center gap-2">
+                <input 
+                  type="number" 
+                  value={gstRate} 
+                  onChange={e => setGstRate(parseFloat(e.target.value))} 
+                  className="w-16 px-2 py-1 text-xs font-bold border rounded" 
+                />
+                <span className="text-xs font-bold">% GST</span>
+                <button onClick={handleSaveGst} disabled={isSavingGst} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded">
+                  {isSavingGst ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                </button>
+                <button onClick={() => setIsEditingGst(false)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-gray-100 px-2.5 py-1 rounded-lg">
+                <span className="text-xs font-bold text-gray-600">GST: {product.gstRate ?? (product.category === 'Mulch Film' ? 18 : 5)}%</span>
+                <button onClick={() => setIsEditingGst(true)} className="text-gray-400 hover:text-emerald-600">
+                  <Edit3 size={12} />
+                </button>
+              </div>
+            )}
+          </div>
           <p className="text-gray-500 font-medium mt-1">{product.category} pricing matrix.</p>
         </div>
 
@@ -273,7 +322,7 @@ const Catalogue = () => {
       </div>
 
       <div>
-        {products?.map((product: any) => (
+        {[...products].sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })).map((product: any) => (
           <ProductTable
             key={product.id}
             product={product}

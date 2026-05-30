@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Package, Clock, CheckCircle, Truck, Info, Check, X as XIcon, Loader2, Eye, Calendar, IndianRupee, Download } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from '../../config';
+import { getGstBreakdown } from "../../utils/gst";
+import { generateInvoicePDF } from "../../utils/pdfGenerator";
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -114,6 +114,45 @@ export default function AdminOrders() {
     }
   };
 
+  const handleUpdatePaymentTerms = async (orderId: string, paymentTerms: string) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}/payment-terms`, {
+        method: "PUT",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ paymentTerms })
+      });
+      if (res.ok) {
+        // Optimistically update
+        setOrders(orders.map(o => o.id === orderId ? { ...o, paymentTerms } : o));
+        if (viewingOrder?.id === orderId) {
+          setViewingOrder({ ...viewingOrder, paymentTerms });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const PaymentTermsEditor = ({ order, onSave }: { order: any, onSave: (id: string, text: string) => void }) => {
+    const [text, setText] = useState(order.paymentTerms || "");
+    return (
+      <div className="mt-3">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Payment Terms (Comment)</p>
+        <input 
+          type="text" 
+          value={text} 
+          onChange={e => setText(e.target.value)} 
+          onBlur={() => text !== (order.paymentTerms || "") && onSave(order.id, text)}
+          placeholder="e.g. Payment on delivery, advance"
+          className="text-xs w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none text-gray-700 font-medium"
+        />
+      </div>
+    );
+  };
+
   const StatusIcon = ({ status }: { status: string }) => {
     switch (status) {
       case "Pending": return <Clock className="text-orange-500" size={20} />;
@@ -146,47 +185,7 @@ export default function AdminOrders() {
   const handleDownloadInvoice = async (orderId: string) => {
     const details = await fetchOrderDetails(orderId);
     if (!details) return;
-
-    const doc = new jsPDF();
-    
-    doc.setFontSize(22);
-    doc.setTextColor(16, 185, 129); // emerald-500
-    doc.text("Sujala Agro Plasts - INVOICE", 14, 22);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(50, 50, 50);
-    doc.text(`Order ID: ORD-${details.id.slice(0, 8).toUpperCase()}`, 14, 34);
-    doc.text(`Order Date: ${new Date(details.orderDate).toLocaleDateString('en-GB')}`, 14, 40);
-    doc.text(`Order Status: ${details.status}`, 14, 46);
-    doc.text(`Payment Status: ${details.paymentStatus}`, 14, 52);
-    
-    doc.text(`Dealer ID: ${details.dealerId}`, 14, 62);
-
-    const tableData = details.items?.map((item: any) => [
-      `${item.productName}\n${item.variantName}`,
-      `${item.width} • ${item.length} • ${item.type}`,
-      item.quantity,
-      `Rs ${item.unitPrice}`,
-      `Rs ${item.quantity * item.unitPrice}`
-    ]) || [];
-
-    autoTable(doc, {
-      startY: 70,
-      head: [['Product', 'Specification', 'Quantity', 'Unit Price', 'Total Amount']],
-      body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [6, 78, 59] }, // emerald-900
-      styles: { fontSize: 10, cellPadding: 4 },
-    });
-
-    const finalY = (doc as any).lastAutoTable.finalY || 70;
-    const totalAmount = details.totalAmount || details.items?.reduce((acc: number, i: any) => acc + i.quantity * i.unitPrice, 0);
-    
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Total Amount: Rs ${totalAmount}`, 14, finalY + 12);
-    
-    doc.save(`Invoice_ORD-${details.id.slice(0, 8).toUpperCase()}.pdf`);
+    generateInvoicePDF(details);
   };
 
   return (
@@ -245,16 +244,16 @@ export default function AdminOrders() {
 
                 {/* Left: Order Info */}
                 <div className="flex items-center gap-4">
-                  <div className="p-4 rounded-2xl bg-gray-50">
+                  <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
                     <StatusIcon status={order.status} />
                   </div>
                   <div>
                     <h4 className="font-black text-gray-900 text-lg">ORD-{order.id.slice(0, 8).toUpperCase()}</h4>
-                    <p className="text-sm font-bold text-gray-400 mt-1">
+                    <p className="text-sm font-bold text-gray-500 mt-1">
                       {new Date(order.orderDate).toLocaleDateString('en-GB')}
                     </p>
-                    <p className="text-xs font-mono font-bold text-gray-400 mt-1 bg-gray-50 px-2 py-0.5 rounded-lg" title={order.dealerId}>
-                      Dealer: {order.dealerId.slice(0, 8).toUpperCase()}...
+                    <p className="text-sm font-black text-emerald-600 mt-1 bg-emerald-50 px-3 py-1 rounded-lg inline-block border border-emerald-100">
+                      {dealers.find(d => d.id === order.dealerId)?.name || 'Unknown Dealer'}
                     </p>
                   </div>
                 </div>
@@ -267,6 +266,7 @@ export default function AdminOrders() {
                       {order.paymentStatus}
                     </span>
                   </div>
+                  <PaymentTermsEditor order={order} onSave={handleUpdatePaymentTerms} />
                   {order.paymentReference && (
                     <p className="text-sm font-medium text-gray-600 mt-3 flex items-center gap-2">
                       <Info size={14} className="text-blue-500" /> Ref: {order.paymentReference}

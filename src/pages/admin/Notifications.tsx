@@ -1,6 +1,9 @@
-import { Info, AlertTriangle, CheckCircle2, MoreVertical } from "lucide-react";
+import { Info, AlertTriangle, CheckCircle2, MoreVertical, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BACKEND_URL } from "../../config";
 
-const NotificationItem = ({ title, message, time, type }: any) => {
+const NotificationItem = ({ id, title, message, createdAt, isRead, onMarkRead }: any) => {
+  const type = title.toLowerCase().includes('alert') ? 'ALERT' : title.toLowerCase().includes('success') || title.toLowerCase().includes('registered') ? 'SUCCESS' : 'INFO';
   const getIcon = () => {
     switch (type) {
       case "ALERT": return <AlertTriangle className="text-rose-600" size={20} />;
@@ -18,20 +21,20 @@ const NotificationItem = ({ title, message, time, type }: any) => {
   };
 
   return (
-    <div className={`p-6 rounded-[2rem] border ${getBg()} flex items-start gap-4 transition-all hover:shadow-md`}>
+    <div className={`p-6 rounded-[2rem] border ${getBg()} ${isRead === 'true' || isRead === true ? 'opacity-60' : 'opacity-100'} flex items-start gap-4 transition-all hover:shadow-md`}>
       <div className="p-3 bg-white rounded-2xl shadow-sm">
         {getIcon()}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <h4 className="font-bold text-gray-900">{title}</h4>
-          <span className="text-xs font-bold text-gray-400">{time}</span>
+          <span className="text-xs font-bold text-gray-400">{new Date(createdAt).toLocaleString()}</span>
         </div>
         <p className="text-sm text-gray-600 mt-1 leading-relaxed">{message}</p>
         <div className="mt-4 flex items-center gap-3">
-          <button className="text-xs font-bold text-emerald-600 hover:underline">Mark as read</button>
-          <span className="text-gray-300">•</span>
-          <button className="text-xs font-bold text-rose-600 hover:underline">Dismiss</button>
+          {(isRead === 'false' || isRead === false) && (
+            <button onClick={() => onMarkRead(id)} className="text-xs font-bold text-emerald-600 hover:underline">Mark as read</button>
+          )}
         </div>
       </div>
     </div>
@@ -39,11 +42,40 @@ const NotificationItem = ({ title, message, time, type }: any) => {
 };
 
 const Notifications = () => {
-  const notifications = [
-    { title: "Low Stock Alert", message: "Inventory for 'Drip Irrigation Kit v2' is below the threshold at Hubli Main Store.", time: "2 hours ago", type: "ALERT" },
-    { title: "New Dealer Registered", message: "Welcome Rahul Deshmukh from Dharwad region to the Sujala network.", time: "5 hours ago", type: "SUCCESS" },
-    { title: "System Update", message: "We've updated the farmer registry to include GPS land mapping features.", time: "1 day ago", type: "INFO" },
-  ];
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/notifications`, {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const handleMarkRead = async (id: string) => {
+    try {
+      await fetch(`${BACKEND_URL}/api/notifications/${id}/read`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+      fetchNotifications(); // Refresh list to update UI
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
@@ -58,9 +90,15 @@ const Notifications = () => {
       </div>
 
       <div className="space-y-4">
-        {notifications.map((n, i) => (
-          <NotificationItem key={i} {...n} />
-        ))}
+        {loading ? (
+          <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>
+        ) : notifications.length === 0 ? (
+          <div className="text-center py-10 text-gray-500 font-medium bg-gray-50 rounded-[2rem] border border-gray-100">No notifications yet.</div>
+        ) : (
+          notifications.map((n) => (
+            <NotificationItem key={n.id} {...n} onMarkRead={handleMarkRead} />
+          ))
+        )}
       </div>
       
       <div className="text-center pt-8">
