@@ -1,7 +1,217 @@
-import { useState, useEffect } from "react";
-import { Search, Loader2, ShoppingCart, CheckCircle, PackageSearch, Minus, Plus } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Search, Loader2, ShoppingCart, CheckCircle, PackageSearch, Minus, Plus, Layers, X, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from '../../config';
+
+// ── Hole Variety Data ──────────────────────────────────────────────────────
+const HOLE_VARIETIES = [
+  { id: "12-straight",  label: "12 Inch Straight",  sub: "Straight Pattern",  file: "12InchStraight.png" },
+  { id: "15-straight",  label: "15 Inch Straight",  sub: "Straight Pattern",  file: "15InchStraight.png" },
+  { id: "18-straight",  label: "18 Inch Straight",  sub: "Straight Pattern",  file: "18InchStraight.png" },
+  { id: "24-straight",  label: "24 Inch Straight",  sub: "Straight Pattern",  file: "24InchStraight.png" },
+  { id: "14-12-zigzag", label: "14×12 Zigzag",      sub: "Zigzag Pattern",    file: "14-12Zigzag.png"    },
+  { id: "15-12-zigzag", label: "15×12 Zigzag",      sub: "Zigzag Pattern",    file: "15-12Zigzag.png"    },
+  { id: "16-14-zigzag", label: "16×14 Zigzag",      sub: "Zigzag Pattern",    file: "16-14Zigzag.png"    },
+  { id: "18-12-zigzag", label: "18×12 Zigzag",      sub: "Zigzag Pattern",    file: "18-12Zigzag.png"    },
+];
+
+// ── Hole Variety Modal ─────────────────────────────────────────────────────
+const HoleVarietyModal = ({
+  selected,
+  onSelect,
+  onClose,
+}: {
+  selected: string;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Lock body scroll while open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const straightVarieties = HOLE_VARIETIES.filter(h => h.sub === "Straight Pattern");
+  const zigzagVarieties   = HOLE_VARIETIES.filter(h => h.sub === "Zigzag Pattern");
+
+  const modal = (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        ref={modalRef}
+        initial={{ opacity: 0, scale: 0.93, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.93, y: 24 }}
+        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        className="bg-white rounded-3xl shadow-2xl w-full overflow-hidden flex flex-col"
+        style={{ maxWidth: 820, maxHeight: "90vh" }}
+      >
+        {/* ── Modal Header ── */}
+        <div className="flex items-center justify-between px-7 py-5 bg-gradient-to-r from-emerald-700 to-emerald-500 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2.5 rounded-xl">
+              <Layers size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-white font-black text-xl tracking-tight">Select Hole Variety</h2>
+              <p className="text-emerald-100 text-sm font-medium mt-0.5">Choose the punching pattern for your mulch film</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="bg-white/10 hover:bg-white/25 text-white rounded-xl p-2.5 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto p-7 space-y-8 flex-1">
+
+          {/* Straight Pattern Group */}
+          <div>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-px flex-1 bg-gray-100" />
+              <span className="text-xs font-black text-gray-400 uppercase tracking-widest px-3 py-1.5 bg-gray-50 rounded-full border border-gray-100">
+                Straight Pattern
+              </span>
+              <div className="h-px flex-1 bg-gray-100" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {straightVarieties.map(hole => (
+                <button
+                  key={hole.id}
+                  onClick={() => { onSelect(hole.id); onClose(); }}
+                  className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-200 group ${
+                    selected === hole.id
+                      ? "border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/20 scale-[1.02]"
+                      : "border-gray-150 bg-gray-50 hover:border-emerald-300 hover:bg-emerald-50/60 hover:shadow-md hover:scale-[1.01]"
+                  }`}
+                  style={{ borderColor: selected === hole.id ? undefined : "#e5e7eb" }}
+                >
+                  {selected === hole.id && (
+                    <div className="absolute top-3 right-3 bg-emerald-500 rounded-full p-1 shadow-md">
+                      <CheckCircle size={14} className="text-white" />
+                    </div>
+                  )}
+                  {/* Image */}
+                  <div className="w-full aspect-square rounded-xl overflow-hidden bg-white border border-gray-100 flex items-center justify-center shadow-sm">
+                    <img
+                      src={`/HoleVariety/${hole.file}`}
+                      alt={hole.label}
+                      className="w-full h-full object-contain p-3"
+                      draggable={false}
+                    />
+                  </div>
+                  {/* Label */}
+                  <div className="text-center">
+                    <p className={`text-sm font-black leading-tight ${
+                      selected === hole.id ? "text-emerald-700" : "text-gray-700 group-hover:text-emerald-700"
+                    }`}>
+                      {hole.label}
+                    </p>
+                    <p className={`text-xs font-semibold mt-0.5 ${
+                      selected === hole.id ? "text-emerald-500" : "text-gray-400"
+                    }`}>
+                      {hole.sub}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Zigzag Pattern Group */}
+          <div>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-px flex-1 bg-gray-100" />
+              <span className="text-xs font-black text-gray-400 uppercase tracking-widest px-3 py-1.5 bg-gray-50 rounded-full border border-gray-100">
+                Zigzag Pattern
+              </span>
+              <div className="h-px flex-1 bg-gray-100" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {zigzagVarieties.map(hole => (
+                <button
+                  key={hole.id}
+                  onClick={() => { onSelect(hole.id); onClose(); }}
+                  className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-200 group ${
+                    selected === hole.id
+                      ? "border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/20 scale-[1.02]"
+                      : "border-gray-150 bg-gray-50 hover:border-emerald-300 hover:bg-emerald-50/60 hover:shadow-md hover:scale-[1.01]"
+                  }`}
+                  style={{ borderColor: selected === hole.id ? undefined : "#e5e7eb" }}
+                >
+                  {selected === hole.id && (
+                    <div className="absolute top-3 right-3 bg-emerald-500 rounded-full p-1 shadow-md">
+                      <CheckCircle size={14} className="text-white" />
+                    </div>
+                  )}
+                  {/* Image */}
+                  <div className="w-full aspect-square rounded-xl overflow-hidden bg-white border border-gray-100 flex items-center justify-center shadow-sm">
+                    <img
+                      src={`/HoleVariety/${hole.file}`}
+                      alt={hole.label}
+                      className="w-full h-full object-contain p-3"
+                      draggable={false}
+                    />
+                  </div>
+                  {/* Label */}
+                  <div className="text-center">
+                    <p className={`text-sm font-black leading-tight ${
+                      selected === hole.id ? "text-emerald-700" : "text-gray-700 group-hover:text-emerald-700"
+                    }`}>
+                      {hole.label}
+                    </p>
+                    <p className={`text-xs font-semibold mt-0.5 ${
+                      selected === hole.id ? "text-emerald-500" : "text-gray-400"
+                    }`}>
+                      {hole.sub}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="px-7 py-4 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between flex-shrink-0">
+          <p className="text-xs text-gray-400 font-medium">
+            {selected
+              ? `Selected: ${HOLE_VARIETIES.find(h => h.id === selected)?.label}`
+              : "No variety selected yet"}
+          </p>
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black transition-colors shadow-md shadow-emerald-500/20"
+          >
+            Done
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+
+  return createPortal(modal, document.body);
+};
 
 /**
  * ProductCard dynamically derives which selectors to show:
@@ -34,12 +244,16 @@ const ProductCard = ({ product, allVariants, allWidths, allLengths, allTypes, al
   const fixedTypeId  = !showType  ? productTypes[0]?.id  : null;
 
   // ── State ──────────────────────────────────────────────────────────────
-  const [variantId, setVariantId] = useState<string>(variants[0]?.id ?? "");
-  const [widthId,   setWidthId]   = useState<string>("");
-  const [lengthId,  setLengthId]  = useState<string>("");
-  const [typeId,    setTypeId]    = useState<string>("");
-  const [quantity,  setQuantity]  = useState<number | string>(1);
-  const [added,     setAdded]     = useState(false);
+  const [variantId,     setVariantId]     = useState<string>(variants[0]?.id ?? "");
+  const [widthId,       setWidthId]       = useState<string>("");
+  const [lengthId,      setLengthId]      = useState<string>("");
+  const [typeId,        setTypeId]        = useState<string>("");
+  const [quantity,      setQuantity]      = useState<number | string>(1);
+  const [added,         setAdded]         = useState(false);
+  const [holeVariety,   setHoleVariety]   = useState<string>("");
+  const [showHolePanel, setShowHolePanel] = useState(false);
+
+  const holeSectionRef = useRef<HTMLDivElement>(null);
 
   // ── Cascading filter logic ─────────────────────────────────────────────
   const availablePrices = allPrices.filter((p: any) => p.variantId === variantId);
@@ -92,8 +306,24 @@ const ProductCard = ({ product, allVariants, allWidths, allLengths, allTypes, al
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lengthId]);
 
+  // Reset hole variety when type changes away from HOLE
+  useEffect(() => {
+    const selectedType = allTypes.find((t: any) => t.id === (showType ? typeId : fixedTypeId));
+    if (!selectedType?.name?.toUpperCase().includes("HOLE")) {
+      setHoleVariety("");
+      setShowHolePanel(false);
+    }
+  }, [typeId, fixedTypeId, showType, allTypes]);
+
   const effectiveTypeId = showType ? typeId : fixedTypeId;
   const finalPrice = availablePricesForLength.find((p: any) => p.typeId === effectiveTypeId);
+
+  // Determine if current type is a hole-punch type
+  const selectedTypeName = allTypes.find((t: any) => t.id === effectiveTypeId)?.name ?? "";
+  const isHoleType = selectedTypeName.toUpperCase().includes("HOLE");
+
+  // Selected hole variety object
+  const selectedHole = HOLE_VARIETIES.find(h => h.id === holeVariety);
 
   // ── Add to cart ────────────────────────────────────────────────────────
   const handleAddToCart = async () => {
@@ -190,6 +420,77 @@ const ProductCard = ({ product, allVariants, allWidths, allLengths, allTypes, al
             </select>
           </div>
         )}
+
+        {/* ── Hole Variety Selector — shown only when a HOLE PUNCH type is active ── */}
+        <AnimatePresence>
+          {isHoleType && (
+            <motion.div
+              ref={holeSectionRef}
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ opacity: 1, height: "auto", marginTop: 0 }}
+              exit={{ opacity: 0, height: 0, marginTop: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="relative overflow-visible"
+            >
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+                Hole Variety
+              </label>
+
+              {/* Trigger button */}
+              <button
+                type="button"
+                onClick={() => setShowHolePanel(prev => !prev)}
+                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border-2 transition-all duration-200 text-sm font-bold text-left ${
+                  showHolePanel
+                    ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20"
+                    : selectedHole
+                    ? "border-emerald-300 bg-emerald-50/60 hover:border-emerald-400"
+                    : "border-dashed border-gray-300 bg-gray-50 hover:border-emerald-400 hover:bg-emerald-50/40"
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {selectedHole ? (
+                    <>
+                      <div className="w-8 h-8 rounded-lg bg-white border border-emerald-100 shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <img
+                          src={`/HoleVariety/${selectedHole.file}`}
+                          alt={selectedHole.label}
+                          className="w-full h-full object-contain p-0.5"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-emerald-800 font-black truncate text-sm">{selectedHole.label}</p>
+                        <p className="text-emerald-600/70 text-[10px] font-bold">{selectedHole.sub}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <Layers size={16} className="text-gray-400" />
+                      </div>
+                      <span className="text-gray-400 font-bold">Select hole pattern…</span>
+                    </>
+                  )}
+                </div>
+                <ChevronRight
+                  size={16}
+                  className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${showHolePanel ? "rotate-90 text-emerald-500" : ""}`}
+                />
+              </button>
+
+              {/* Hole variety panel (dropdown) */}
+              <AnimatePresence>
+                {showHolePanel && (
+                  <HoleVarietyModal
+                    selected={holeVariety}
+                    onSelect={setHoleVariety}
+                    onClose={() => setShowHolePanel(false)}
+                  />
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Price + Quantity + Button */}
         <div className="mt-auto pt-4 border-t border-gray-100">

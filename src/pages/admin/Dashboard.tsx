@@ -6,7 +6,9 @@ import {
   Package,
   MapPin,
   Map,
-  BadgeCent
+  BadgeCent,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -33,12 +35,68 @@ const StatsCard = ({ title, value, icon: Icon, trend, color }: any) => (
   </motion.div>
 );
 
+// ── Mini Pagination ────────────────────────────────────────────────────────
+const MiniPagination = ({
+  total,
+  page,
+  perPage,
+  onPage,
+}: {
+  total: number;
+  page: number;
+  perPage: number;
+  onPage: (p: number) => void;
+}) => {
+  const totalPages = Math.ceil(total / perPage);
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-2">
+      <p className="text-xs font-bold text-gray-400">
+        {Math.min((page - 1) * perPage + 1, total)}–{Math.min(page * perPage, total)} of {total}
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPage(page - 1)}
+          disabled={page === 1}
+          className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronLeft size={13} />
+        </button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          <button
+            key={p}
+            onClick={() => onPage(p)}
+            className={`w-7 h-7 rounded-lg text-xs font-black transition-all ${
+              p === page
+                ? "bg-emerald-600 text-white shadow-sm"
+                : "border border-gray-200 text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          onClick={() => onPage(page + 1)}
+          disabled={page === totalPages}
+          className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronRight size={13} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Hot Selling Products ───────────────────────────────────────────────────
+const PRODUCTS_PER_PAGE = 10;
+
 const HotSellingProducts = () => {
   const [activeTab, setActiveTab] = useState<"STATE" | "DEALER">("STATE");
-  const [selectedState, setSelectedState] = useState<string>("ALL");
+  const [selectedState, setSelectedState]   = useState<string>("ALL");
   const [selectedDealer, setSelectedDealer] = useState<string>("ALL");
+  const [page, setPage] = useState(1);
 
-  const [stateProducts, setStateProducts] = useState<any[]>([]);
+  const [stateProducts,  setStateProducts]  = useState<any[]>([]);
   const [dealerProducts, setDealerProducts] = useState<any[]>([]);
   const [, setLoading] = useState(true);
 
@@ -62,12 +120,35 @@ const HotSellingProducts = () => {
     fetchData();
   }, []);
 
-  const uniqueStates = Array.from(new Set(stateProducts.map(p => p.state)));
+  // Reset page when tab or filter changes
+  useEffect(() => { setPage(1); }, [activeTab, selectedState, selectedDealer]);
+
+  const uniqueStates  = Array.from(new Set(stateProducts.map(p => p.state)));
   const uniqueDealers = Array.from(new Set(dealerProducts.map(p => p.dealer)));
 
-  const currentData = activeTab === "STATE" 
-    ? (selectedState === "ALL" ? stateProducts : stateProducts.filter(p => p.state === selectedState))
+  const filteredData = activeTab === "STATE"
+    ? (selectedState  === "ALL" ? stateProducts  : stateProducts.filter(p => p.state  === selectedState))
     : (selectedDealer === "ALL" ? dealerProducts : dealerProducts.filter(p => p.dealer === selectedDealer));
+
+  // Enrich: parse revenue, compute avg/unit and bar width relative to the top earner
+  const parsedData = filteredData.map(item => {
+    const rev = typeof item.revenue === "number"
+      ? item.revenue
+      : parseFloat(String(item.revenue).replace(/[₹,]/g, "")) || 0;
+    const units = Number(item.sales) || 1;
+    const avgPerUnit = Math.round(rev / units);
+    return { ...item, _rev: rev, _avgPerUnit: avgPerUnit };
+  });
+
+  const maxRevenue = parsedData.reduce((m, d) => Math.max(m, d._rev), 0);
+
+  const enrichedData = parsedData.map(d => ({
+    ...d,
+    _barPct: maxRevenue > 0 ? Math.round((d._rev / maxRevenue) * 100) : 0,
+  }));
+
+  // Pagination
+  const pagedData  = enrichedData.slice((page - 1) * PRODUCTS_PER_PAGE, page * PRODUCTS_PER_PAGE);
 
   return (
     <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
@@ -77,110 +158,142 @@ const HotSellingProducts = () => {
             <h4 className="text-xl font-bold text-gray-900">Hot Selling Products</h4>
             <p className="text-sm text-gray-500 font-medium mt-1">Top performing items across regions.</p>
           </div>
-          
           {/* Tabs */}
           <div className="flex items-center p-1 bg-gray-50 rounded-xl border border-gray-100">
             <button
               onClick={() => setActiveTab("STATE")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === "STATE" 
-                  ? "bg-white text-emerald-700 shadow-sm border border-gray-100" 
+                activeTab === "STATE"
+                  ? "bg-white text-emerald-700 shadow-sm border border-gray-100"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              <Map size={16} />
-              State-wise
+              <Map size={16} /> State-wise
             </button>
             <button
               onClick={() => setActiveTab("DEALER")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === "DEALER" 
-                  ? "bg-white text-emerald-700 shadow-sm border border-gray-100" 
+                activeTab === "DEALER"
+                  ? "bg-white text-emerald-700 shadow-sm border border-gray-100"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              <Store size={16} />
-              Dealer-wise
+              <Store size={16} /> Dealer-wise
             </button>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center">
+        {/* Filter dropdown */}
+        <div className="flex items-center gap-3">
           {activeTab === "STATE" ? (
             <select
               value={selectedState}
-              onChange={(e) => setSelectedState(e.target.value)}
+              onChange={e => setSelectedState(e.target.value)}
               className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 font-medium outline-none"
             >
               <option value="ALL">All States</option>
-              {uniqueStates.map(state => (
-                <option key={state} value={state}>{state}</option>
-              ))}
+              {uniqueStates.map(state => <option key={state} value={state}>{state}</option>)}
             </select>
           ) : (
             <select
               value={selectedDealer}
-              onChange={(e) => setSelectedDealer(e.target.value)}
+              onChange={e => setSelectedDealer(e.target.value)}
               className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 font-medium outline-none"
             >
               <option value="ALL">All Dealers</option>
-              {uniqueDealers.map(dealer => (
-                <option key={dealer} value={dealer}>{dealer}</option>
-              ))}
+              {uniqueDealers.map(dealer => <option key={dealer} value={dealer}>{dealer}</option>)}
             </select>
+          )}
+          {enrichedData.length > 0 && (
+            <span className="text-xs font-bold text-gray-400 ml-auto">
+              {enrichedData.length} product{enrichedData.length !== 1 ? "s" : ""}
+            </span>
           )}
         </div>
       </div>
 
       <div className="flex-1 p-8">
-        <div className="space-y-4">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${activeTab}-${activeTab === 'STATE' ? selectedState : selectedDealer}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-4"
-            >
-              {currentData.length > 0 ? currentData.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                      <Package size={20} />
-                    </div>
-                    <div>
-                      <h5 className="font-bold text-gray-900">{item.name}</h5>
-                      <div className="flex items-center gap-2 text-xs font-bold text-gray-500 mt-1">
-                        {activeTab === "STATE" ? <MapPin size={12} /> : <Store size={12} />}
-                        <span className="uppercase tracking-wider">{(item as any).state || (item as any).dealer}</span>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${activeTab}-${activeTab === "STATE" ? selectedState : selectedDealer}-${page}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-2"
+          >
+            {pagedData.length > 0 ? (
+              <>
+                {/* Column headers */}
+                <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-4 pb-2 border-b border-gray-100">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Product</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-right hidden sm:block">Units Sold</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Revenue</span>
+                </div>
+
+                {pagedData.map((item, idx) => {
+                  const rank = (page - 1) * PRODUCTS_PER_PAGE + idx + 1;
+                  return (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-[1fr_auto_auto] gap-4 items-center p-4 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 group"
+                    >
+                      {/* Product info */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative flex-shrink-0">
+                          <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                            <Package size={18} />
+                          </div>
+                          {rank <= 3 && (
+                            <span className={`absolute -top-1.5 -right-1.5 text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center ${
+                              rank === 1 ? "bg-yellow-400 text-yellow-900"
+                              : rank === 2 ? "bg-gray-300 text-gray-700"
+                              : "bg-orange-300 text-orange-900"
+                            }`}>
+                              {rank}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h5 className="font-bold text-gray-900 truncate text-sm">{item.name}</h5>
+                          <div className="flex items-center gap-1 text-xs font-bold text-gray-400 mt-0.5">
+                            {activeTab === "STATE" ? <MapPin size={10} /> : <Store size={10} />}
+                            <span className="uppercase tracking-wide truncate">{(item as any).state || (item as any).dealer}</span>
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Units */}
+                      <div className="text-right hidden sm:block">
+                        <p className="font-bold text-gray-700 text-sm">{item.sales}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">units</p>
+                      </div>
+
+                      {/* Revenue */}
+                      <div className="text-right">
+                        <p className="font-bold text-gray-900 text-sm">{typeof item.revenue === "number" ? `₹${item.revenue.toLocaleString("en-IN")}` : item.revenue}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">revenue</p>
+                      </div>
+
+
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-8 text-right">
-                    <div className="hidden sm:block">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Sales Volume</p>
-                      <p className="font-bold text-gray-700">{item.sales} Units</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Revenue</p>
-                      <p className="font-bold text-gray-900">{item.revenue}</p>
-                    </div>
-                    <div className={`flex items-center justify-end w-16 text-sm font-bold ${item.trend > 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                      {item.trend > 0 ? "+" : ""}{item.trend}%
-                    </div>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-center py-8 text-gray-500 font-medium">
-                  No data found for the selected filter.
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+                  );
+                })}
+
+                <MiniPagination
+                  total={enrichedData.length}
+                  page={page}
+                  perPage={PRODUCTS_PER_PAGE}
+                  onPage={setPage}
+                />
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-400 font-medium">
+                No data found for the selected filter.
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -190,41 +303,15 @@ const Dashboard = () => {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard 
-          title="Number of Dealers" 
-          value="142" 
-          icon={Store} 
-          trend={8.5} 
-          color="bg-blue-50 text-blue-600" 
-        />
-        <StatsCard 
-          title="Registered Farmers" 
-          value="8,920" 
-          icon={UserRound} 
-          trend={12.1} 
-          color="bg-orange-50 text-orange-600" 
-        />
-        <StatsCard 
-          title="Total Products" 
-          value="58" 
-          icon={Package} 
-          trend={4.2} 
-          color="bg-emerald-50 text-emerald-600" 
-        />
-        <StatsCard 
-          title="Monthly Revenue" 
-          value="₹4.2M" 
-          icon={BadgeCent} 
-          trend={14.2} 
-          color="bg-purple-50 text-purple-600" 
-        />
+        <StatsCard title="Number of Dealers" value="142" icon={Store}     trend={8.5}  color="bg-blue-50 text-blue-600"     />
+        <StatsCard title="Registered Farmers" value="8,920" icon={UserRound} trend={12.1} color="bg-orange-50 text-orange-600" />
+        <StatsCard title="Total Products"     value="58"    icon={Package}   trend={4.2}  color="bg-emerald-50 text-emerald-600" />
+        <StatsCard title="Monthly Revenue"    value="₹4.2M" icon={BadgeCent}  trend={14.2} color="bg-purple-50 text-purple-600"  />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Hot Selling Products replacing the pipeline visual */}
         <HotSellingProducts />
-        
+
         <div className="bg-emerald-900 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-emerald-900/20 flex flex-col justify-between">
           <div>
             <h4 className="text-xl font-bold">Quick Insights</h4>
