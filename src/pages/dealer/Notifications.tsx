@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Loader2 } from "lucide-react";
+import { Bell, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { BACKEND_URL } from '../../config';
 
 const NotificationItem = ({ id, title, message, createdAt, isRead, onRead }: any) => {
@@ -25,7 +25,72 @@ const NotificationItem = ({ id, title, message, createdAt, isRead, onRead }: any
   );
 };
 
+// ── Pagination component ───────────────────────────────────────────────────
+const Pagination = ({
+  total,
+  page,
+  perPage,
+  onPage,
+}: {
+  total: number;
+  page: number;
+  perPage: number;
+  onPage: (p: number) => void;
+}) => {
+  const totalPages = Math.ceil(total / perPage);
+  if (totalPages <= 1) return null;
+
+  const pages: (number | "…")[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - page) <= 1) pages.push(i);
+    else if (pages[pages.length - 1] !== "…") pages.push("…");
+  }
+
+  return (
+    <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-4">
+      <p className="text-xs font-bold text-gray-400">
+        Showing <span className="text-gray-700">{Math.min((page - 1) * perPage + 1, total)}–{Math.min(page * perPage, total)}</span> of <span className="text-gray-700">{total}</span>
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPage(page - 1)}
+          disabled={page === 1}
+          className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        {pages.map((p, i) =>
+          p === "…" ? (
+            <span key={`ellipsis-${i}`} className="px-2 text-gray-400 text-sm">…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPage(p as number)}
+              className={`w-8 h-8 rounded-xl text-xs font-black transition-all ${
+                p === page
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
+                  : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {p}
+            </button>
+          )
+        )}
+        <button
+          onClick={() => onPage(page + 1)}
+          disabled={page === totalPages}
+          className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function Notifications() {
+  const [pageNum, setPageNum] = useState(1);
+  const NOTIFS_PER_PAGE = 10;
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -74,9 +139,17 @@ export default function Notifications() {
         <div className="flex justify-center py-20"><Loader2 className="animate-spin text-emerald-500 w-8 h-8" /></div>
       ) : notifications.length > 0 ? (
         <div className="space-y-4">
-          {notifications.map((n: any) => (
-            <NotificationItem key={n.id} {...n} onRead={markAsRead} />
-          ))}
+          <div className="space-y-4">
+            {notifications.slice((pageNum - 1) * NOTIFS_PER_PAGE, pageNum * NOTIFS_PER_PAGE).map((n: any) => (
+              <NotificationItem key={n.id} {...n} onRead={markAsRead} />
+            ))}
+          </div>
+          <Pagination
+            total={notifications.length}
+            page={pageNum}
+            perPage={NOTIFS_PER_PAGE}
+            onPage={(p) => { setPageNum(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          />
         </div>
       ) : (
         <div className="bg-white border border-gray-100 rounded-[2.5rem] p-12 text-center shadow-sm">

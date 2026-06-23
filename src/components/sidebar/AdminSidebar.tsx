@@ -8,7 +8,8 @@ import {
   LogOut,
   Sprout,
   X,
-  Menu
+  Menu,
+  Map
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +21,7 @@ const menuItems: { label: string; key: AdminPage; icon: any }[] = [
   { label: "Orders", key: "ORDERS", icon: PackageSearch },
   { label: "Product Catalogue", key: "CATALOGUE", icon: PackageSearch },
   { label: "Discounts", key: "DISCOUNTS", icon: Store },
+  { label: "Locations Map", key: "MAP", icon: Map },
   { label: "User Management", key: "USERS", icon: UsersIcon },
   { label: "Dealers", key: "DEALERS", icon: Store },
   { label: "Store Details", key: "STORES", icon: Store },

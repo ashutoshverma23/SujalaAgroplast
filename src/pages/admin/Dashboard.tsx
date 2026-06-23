@@ -8,7 +8,14 @@ import {
   Map,
   BadgeCent,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Plus,
+  FileText,
+  Trash2,
+  Download,
+  Edit3,
+  X,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -49,6 +56,13 @@ const MiniPagination = ({
 }) => {
   const totalPages = Math.ceil(total / perPage);
   if (totalPages <= 1) return null;
+
+  const pages: (number | "…")[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - page) <= 1) pages.push(i);
+    else if (pages[pages.length - 1] !== "…") pages.push("…");
+  }
+
   return (
     <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-2">
       <p className="text-xs font-bold text-gray-400">
@@ -62,19 +76,23 @@ const MiniPagination = ({
         >
           <ChevronLeft size={13} />
         </button>
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-          <button
-            key={p}
-            onClick={() => onPage(p)}
-            className={`w-7 h-7 rounded-lg text-xs font-black transition-all ${
-              p === page
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "border border-gray-200 text-gray-500 hover:bg-gray-50"
-            }`}
-          >
-            {p}
-          </button>
-        ))}
+        {pages.map((p, i) =>
+          p === "…" ? (
+            <span key={`ellipsis-${i}`} className="px-1.5 text-gray-400 text-xs">…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPage(p as number)}
+              className={`w-7 h-7 rounded-lg text-xs font-black transition-all ${
+                p === page
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "border border-gray-200 text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              {p}
+            </button>
+          )
+        )}
         <button
           onClick={() => onPage(page + 1)}
           disabled={page === totalPages}
@@ -300,13 +318,207 @@ const HotSellingProducts = () => {
 };
 
 const Dashboard = () => {
+  const [priceLists, setPriceLists] = useState<any[]>([]);
+  const [loadingLists, setLoadingLists] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedPl, setSelectedPl] = useState<any>(null);
+  const [title, setTitle] = useState("");
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [savingPl, setSavingPl] = useState(false);
+
+  useEffect(() => {
+    fetchPriceLists();
+  }, []);
+
+  const fetchPriceLists = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/price-lists`, {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+      if (res.ok) setPriceLists(await res.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingLists(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setPdfFile(e.target.files[0]);
+    }
+  };
+
+  const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title) return;
+    if (!selectedPl && !pdfFile) {
+      alert("Please select a PDF file to upload");
+      return;
+    }
+
+    setSavingPl(true);
+    try {
+      let pdfBase64 = "";
+      if (pdfFile) {
+        pdfBase64 = await toBase64(pdfFile);
+      }
+
+      const method = selectedPl ? "PUT" : "POST";
+      const url = selectedPl ? `${BACKEND_URL}/api/price-lists/${selectedPl.id}` : `${BACKEND_URL}/api/price-lists`;
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ title, pdfBase64 })
+      });
+
+      if (res.ok) {
+        setTitle("");
+        setPdfFile(null);
+        setSelectedPl(null);
+        setModalOpen(false);
+        fetchPriceLists();
+      } else {
+        const err = await res.json();
+        alert(err.message || "Failed to save price list");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error saving price list");
+    } finally {
+      setSavingPl(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this price list?")) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/price-lists/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+      if (res.ok) {
+        fetchPriceLists();
+      } else {
+        alert("Failed to delete price list");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error deleting price list");
+    }
+  };
+
+  const openEdit = (pl: any) => {
+    setSelectedPl(pl);
+    setTitle(pl.title);
+    setPdfFile(null);
+    setModalOpen(true);
+  };
+
+  const openCreate = () => {
+    setSelectedPl(null);
+    setTitle("");
+    setPdfFile(null);
+    setModalOpen(true);
+  };
+
   return (
     <div className="space-y-8">
+      {/* Stats row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard title="Number of Dealers" value="142" icon={Store}     trend={8.5}  color="bg-blue-50 text-blue-600"     />
         <StatsCard title="Registered Farmers" value="8,920" icon={UserRound} trend={12.1} color="bg-orange-50 text-orange-600" />
         <StatsCard title="Total Products"     value="58"    icon={Package}   trend={4.2}  color="bg-emerald-50 text-emerald-600" />
         <StatsCard title="Monthly Revenue"    value="₹4.2M" icon={BadgeCent}  trend={14.2} color="bg-purple-50 text-purple-600"  />
+      </div>
+
+      {/* ── Price Lists Manager Section ── */}
+      <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 md:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+              <FileText className="text-emerald-600" size={24} /> Price Lists
+            </h3>
+            <p className="text-xs text-gray-400 font-bold mt-1 uppercase tracking-wide">
+              Manage product price lists shown to dealers
+            </p>
+          </div>
+          <button
+            onClick={openCreate}
+            className="px-4 py-2.5 bg-emerald-600 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 hover:shadow-emerald-700/30 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+          >
+            <Plus size={16} /> Upload Price List
+          </button>
+        </div>
+
+        {loadingLists ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="animate-spin text-emerald-600" size={24} />
+          </div>
+        ) : priceLists.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {priceLists.map((pl: any) => (
+              <motion.div
+                key={pl.id}
+                whileHover={{ y: -2 }}
+                className="bg-gray-50/50 hover:bg-gray-50 border border-gray-100 rounded-2xl p-4 flex items-center justify-between gap-4 transition-all duration-300"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl flex-shrink-0">
+                    <FileText size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <h5 className="font-bold text-gray-900 text-sm truncate">{pl.title}</h5>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                      {new Date(pl.createdAt).toLocaleDateString("en-GB")}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <a
+                    href={`${BACKEND_URL}${pl.pdfUrl}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                    title="View PDF"
+                  >
+                    <Download size={14} />
+                  </a>
+                  <button
+                    onClick={() => openEdit(pl)}
+                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                    title="Edit/Update"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(pl.id)}
+                    className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-gray-50/40 rounded-2xl p-8 border border-dashed border-gray-200 text-center">
+            <p className="text-sm font-semibold text-gray-400">No price lists uploaded yet.</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -328,6 +540,94 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Price List Upload/Edit Modal ── */}
+      <AnimatePresence>
+        {modalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-emerald-800 to-emerald-900 text-white">
+                <div>
+                  <h3 className="text-lg font-black">{selectedPl ? "Update Price List" : "Upload Price List"}</h3>
+                  <p className="text-emerald-300 text-xs font-semibold mt-0.5">Provide details and select PDF file</p>
+                </div>
+                <button
+                  onClick={() => setModalOpen(false)}
+                  className="p-1.5 bg-emerald-700/50 text-emerald-200 hover:text-white rounded-xl transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSave} className="p-6 space-y-4">
+                <div>
+                  <label className="text-xs font-black text-gray-700 block mb-1.5 uppercase tracking-wide">
+                    Price List Title
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Sujala Agro Price List 2026"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-semibold text-gray-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-black text-gray-700 block mb-1.5 uppercase tracking-wide">
+                    PDF File
+                  </label>
+                  {selectedPl && !pdfFile && (
+                    <div className="mb-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between gap-3 text-xs font-semibold text-emerald-800">
+                      <span className="truncate">Current: View existing file</span>
+                      <a
+                        href={`${BACKEND_URL}${selectedPl.pdfUrl}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-emerald-600 hover:underline flex-shrink-0"
+                      >
+                        Download PDF
+                      </a>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    required={!selectedPl}
+                    onChange={handleFileChange}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 file:cursor-pointer cursor-pointer border border-gray-200 p-2 rounded-xl"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(false)}
+                    className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors text-xs"
+                    disabled={savingPl}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingPl}
+                    className="px-6 py-2.5 bg-emerald-600 text-white font-black rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center gap-2 text-xs"
+                  >
+                    {savingPl && <Loader2 size={14} className="animate-spin" />}
+                    {selectedPl ? "Update" : "Upload"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

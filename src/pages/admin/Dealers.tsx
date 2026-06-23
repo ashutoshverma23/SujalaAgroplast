@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit, Trash2, Loader2, X, CheckCircle, XCircle, Clock, Key } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Loader2, X, CheckCircle, XCircle, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from '../../config';
 
@@ -286,11 +286,6 @@ export default function Dealers() {
                               <XCircle size={18} />
                             </button>
                           </>
-                        )}
-                        {user.role === "DEALER" && (
-                          <button onClick={() => { setSelectedUserId(user.id); setIsPasswordModalOpen(true); }} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Change Password">
-                            <Key size={18} />
-                          </button>
                         )}
                         <button onClick={() => handleEditClick(user.id)} className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Edit Details">
                           <Edit size={18} />

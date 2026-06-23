@@ -9,7 +9,8 @@ import Farmers from "../pages/admin/Farmers";
 import Notifications from "../pages/admin/Notifications";
 import Catalogue from "../pages/admin/Catalogue";
 import Discounts from "../pages/admin/Discounts";
-import { Search, UserCircle, Bell, Menu, X, Sprout, LayoutDashboard, Users as UsersIcon, Store, UserRound, PackageSearch, LogOut } from "lucide-react";
+import LocationsMap from "../pages/admin/LocationsMap";
+import { Search, UserCircle, Bell, Menu, X, Sprout, LayoutDashboard, Users as UsersIcon, Store, UserRound, PackageSearch, LogOut, Map } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { BACKEND_URL } from '../config';
@@ -23,13 +24,15 @@ export type AdminPage =
   | "FARMERS"
   | "CATALOGUE"
   | "DISCOUNTS"
-  | "NOTIFICATIONS";
+  | "NOTIFICATIONS"
+  | "MAP";
 
 const menuItems: { label: string; key: AdminPage; icon: any }[] = [
   { label: "Dashboard", key: "DASHBOARD", icon: LayoutDashboard },
   { label: "Orders", key: "ORDERS", icon: PackageSearch },
   { label: "Product Catalogue", key: "CATALOGUE", icon: PackageSearch },
   { label: "Discounts", key: "DISCOUNTS", icon: Store },
+  { label: "Locations Map", key: "MAP", icon: Map },
   { label: "User Management", key: "USERS", icon: UsersIcon },
   { label: "Dealers", key: "DEALERS", icon: Store },
   { label: "Store Details", key: "STORES", icon: Store },
@@ -77,6 +80,7 @@ export default function AdminLayout() {
       case "CATALOGUE": return <Catalogue />;
       case "DISCOUNTS": return <Discounts />;
       case "NOTIFICATIONS": return <Notifications />;
+      case "MAP": return <LocationsMap />;
       default: return <Dashboard />;
     }
   };

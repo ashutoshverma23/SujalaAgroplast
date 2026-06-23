@@ -3,11 +3,12 @@ import {
   Package, Clock, CheckCircle, Info, Check, X as XIcon,
   Loader2, Eye, Calendar, IndianRupee, Download, MessageSquare,
   Save, BadgeCheck, AlertCircle, XCircle, Pencil, Search, Filter,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Plus, Minus, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from '../../config';
 import { generateInvoicePDF } from "../../utils/pdfGenerator";
+import { getGstBreakdown } from "../../utils/gst";
 
 // ── Status helpers ─────────────────────────────────────────────────────────
 const statusConfig: Record<string, { color: string; bg: string; border: string }> = {
@@ -211,9 +212,41 @@ export default function AdminOrders() {
   const [filterStatus, setFilterStatus] = useState("");
   const [prevPage, setPrevPage] = useState(1);
 
-  useEffect(() => { fetchOrders(); fetchDealers(); }, []);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [editItems, setEditItems] = useState<any[]>([]);
+  const [selectedDiscounts, setSelectedDiscounts] = useState<Record<string, boolean>>({});
+  const [catalogue, setCatalogue] = useState<any>(null);
+  const [activeDiscounts, setActiveDiscounts] = useState<any[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Selectors for adding a product config
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedVariantId, setSelectedVariantId] = useState("");
+  const [selectedWidthId, setSelectedWidthId] = useState("");
+  const [selectedLengthId, setSelectedLengthId] = useState("");
+  const [selectedTypeId, setSelectedTypeId] = useState("");
+
+  useEffect(() => { 
+    fetchOrders(); 
+    fetchDealers(); 
+    fetchCatalogueAndDiscounts();
+  }, []);
   // Reset prev page when filters change
   useEffect(() => { setPrevPage(1); }, [filterDate, filterDealer, filterStatus]);
+
+  const fetchCatalogueAndDiscounts = async () => {
+    try {
+      const headers = { "Authorization": `Bearer ${localStorage.getItem("token")}` };
+      const [catRes, discRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/products/catalogue`),
+        fetch(`${BACKEND_URL}/api/discounts/active`, { headers })
+      ]);
+      if (catRes.ok) setCatalogue(await catRes.json());
+      if (discRes.ok) setActiveDiscounts(await discRes.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchDealers = async () => {
     try {
@@ -303,6 +336,188 @@ export default function AdminOrders() {
   const handleDownloadInvoice = async (orderId: string) => {
     const details = await fetchOrderDetails(orderId);
     if (details) generateInvoicePDF(details);
+  };
+
+  const handleEditOrder = async (orderId: string) => {
+    const details = await fetchOrderDetails(orderId);
+    if (!details) return;
+
+    setEditingOrder(details);
+    
+    // Set current items
+    setEditItems(details.items.map((item: any) => ({
+      priceId: item.priceId,
+      quantity: item.quantity,
+      productName: item.productName,
+      variantName: item.variantName,
+      width: item.width,
+      length: item.length,
+      type: item.type,
+      unitPrice: item.unitPrice,
+      category: item.category,
+      gstRate: item.category === 'Mulch Film' ? 18 : 5
+    })));
+
+    // Set currently checked discounts
+    const currentDiscounts: Record<string, boolean> = {};
+    if (Array.isArray(details.appliedDiscounts)) {
+      details.appliedDiscounts.forEach((d: any) => {
+        currentDiscounts[d.id] = true;
+      });
+    }
+    setSelectedDiscounts(currentDiscounts);
+
+    // Reset selectors
+    setSelectedProductId("");
+    setSelectedVariantId("");
+    setSelectedWidthId("");
+    setSelectedLengthId("");
+    setSelectedTypeId("");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingOrder) return;
+    setSavingEdit(true);
+
+    const totals = getModalTotals();
+
+    try {
+      const payload = {
+        items: editItems.map(i => ({ priceId: i.priceId, quantity: i.quantity })),
+        subtotalAmount: totals.baseSubtotal,
+        discountAmount: totals.totalDiscountAmount,
+        taxAmount: totals.totalGstAmount,
+        totalAmount: totals.finalTotal,
+        appliedDiscounts: totals.appliedDiscountsRecord
+      };
+
+      const res = await fetch(`${BACKEND_URL}/api/orders/${editingOrder.id}/admin-edit`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setEditingOrder(null);
+        fetchOrders();
+      } else {
+        const err = await res.json();
+        alert(err.message || "Failed to save changes");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error saving changes");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const updateEditItemQty = (idx: number, newQty: number) => {
+    if (newQty < 1) return;
+    setEditItems(prev => prev.map((item, i) => i === idx ? { ...item, quantity: newQty } : item));
+  };
+
+  const removeEditItem = (idx: number) => {
+    setEditItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const addProductToOrder = () => {
+    if (!catalogue) return;
+    const matchingPrice = catalogue.prices.find((p: any) => 
+      p.variantId === selectedVariantId && 
+      p.widthId === selectedWidthId && 
+      p.lengthId === selectedLengthId && 
+      p.typeId === selectedTypeId
+    );
+    if (!matchingPrice) {
+      alert("No price found for this configuration.");
+      return;
+    }
+
+    const product = catalogue.products.find((p: any) => p.id === selectedProductId);
+    const variant = catalogue.variants.find((v: any) => v.id === selectedVariantId);
+    const width = catalogue.widths.find((w: any) => w.id === selectedWidthId);
+    const length = catalogue.lengths.find((l: any) => l.id === selectedLengthId);
+    const type = catalogue.types.find((t: any) => t.id === selectedTypeId);
+
+    // Check if item already exists in editItems
+    const exists = editItems.some(i => i.priceId === matchingPrice.id);
+    if (exists) {
+      alert("Product configuration already in order. You can adjust its quantity.");
+      return;
+    }
+
+    setEditItems(prev => [...prev, {
+      priceId: matchingPrice.id,
+      quantity: 1,
+      productName: product?.name || "Unknown",
+      variantName: variant?.name || "Unknown",
+      width: width?.label || "Unknown",
+      length: length?.label || "Unknown",
+      type: type?.name || "Unknown",
+      unitPrice: matchingPrice.price,
+      category: product?.category || "Unknown",
+      gstRate: product?.gstRate || (product?.category === 'Mulch Film' ? 18 : 5)
+    }]);
+
+    // Reset selections
+    setSelectedProductId("");
+    setSelectedVariantId("");
+    setSelectedWidthId("");
+    setSelectedLengthId("");
+    setSelectedTypeId("");
+  };
+
+  const getModalTotals = () => {
+    const baseSubtotal = editItems.reduce((sum, item) => sum + getGstBreakdown(item.unitPrice, item.category, item.quantity, item.gstRate).basePrice, 0);
+    const totalGstAmount = editItems.reduce((sum, item) => sum + getGstBreakdown(item.unitPrice, item.category, item.quantity, item.gstRate).gstAmount, 0);
+    const initialTotal = editItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+
+    let currentTotal = initialTotal;
+    const appliedDiscountsRecord: any[] = [];
+    
+    const dealerState = editingOrder?.dealerKyc?.state?.trim().toLowerCase();
+    const eligibleDiscounts = activeDiscounts.filter(d => {
+      if (!d.state || d.state.trim() === '' || d.state.trim().toLowerCase() === 'all') {
+        return true;
+      }
+      return dealerState ? d.state.trim().toLowerCase() === dealerState : false;
+    });
+
+    eligibleDiscounts.forEach(disc => {
+      let eligible = false;
+      if (disc.conditionType === 'min_invoice_value') {
+        eligible = initialTotal >= (disc.conditionValue || 0);
+      } else {
+        eligible = true;
+      }
+
+      if (eligible && selectedDiscounts[disc.id]) {
+        const discAmt = currentTotal * (disc.percentage / 100);
+        currentTotal -= discAmt;
+        appliedDiscountsRecord.push({
+          id: disc.id,
+          name: disc.name,
+          percentage: disc.percentage,
+          amount: discAmt
+        });
+      }
+    });
+
+    const finalTotal = Math.round(currentTotal);
+    const totalDiscountAmount = initialTotal - finalTotal;
+
+    return {
+      baseSubtotal,
+      totalGstAmount,
+      finalTotal,
+      totalDiscountAmount,
+      appliedDiscountsRecord,
+      eligibleDiscounts
+    };
   };
 
   // ── Date helpers ────────────────────────────────────────────────────────
@@ -409,6 +624,12 @@ export default function AdminOrders() {
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-all">
               <Eye size={13} /> View Details
             </button>
+            {order.status === "Pending" && (
+              <button onClick={() => handleEditOrder(order.id)}
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl hover:bg-blue-100 transition-all">
+                <Pencil size={13} /> Edit Order
+              </button>
+            )}
             <button onClick={() => handleDownloadInvoice(order.id)}
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl hover:bg-emerald-600 hover:text-white transition-all">
               <Download size={13} /> Invoice
@@ -418,6 +639,38 @@ export default function AdminOrders() {
       </motion.div>
     );
   };
+
+  const availableWidths = catalogue && selectedVariantId ? catalogue.widths.filter((w: any) =>
+    catalogue.prices.some((p: any) => p.variantId === selectedVariantId && p.widthId === w.id)
+  ) : [];
+
+  const availableLengths = catalogue && selectedVariantId && selectedWidthId ? catalogue.lengths.filter((l: any) =>
+    catalogue.prices.some((p: any) =>
+      p.variantId === selectedVariantId &&
+      p.widthId === selectedWidthId &&
+      p.lengthId === l.id
+    )
+  ) : [];
+
+  const availableTypes = catalogue && selectedVariantId && selectedWidthId && selectedLengthId ? catalogue.types.filter((t: any) =>
+    catalogue.prices.some((p: any) =>
+      p.variantId === selectedVariantId &&
+      p.widthId === selectedWidthId &&
+      p.lengthId === selectedLengthId &&
+      p.typeId === t.id
+    )
+  ) : [];
+
+  const matchingPrice = (catalogue && selectedVariantId && selectedWidthId && selectedLengthId && selectedTypeId)
+    ? catalogue.prices.find((p: any) => 
+        p.variantId === selectedVariantId && 
+        p.widthId === selectedWidthId && 
+        p.lengthId === selectedLengthId && 
+        p.typeId === selectedTypeId
+      )
+    : null;
+
+  const totals = getModalTotals();
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
@@ -680,6 +933,357 @@ export default function AdminOrders() {
                     Close
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Edit Order Modal ── */}
+      <AnimatePresence>
+        {editingOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-blue-900 to-indigo-900 text-white">
+                <div>
+                  <h3 className="text-2xl font-black">Edit Pending Order</h3>
+                  <p className="text-sm font-bold text-blue-200 mt-0.5">
+                    #ORD-{editingOrder.id.slice(0, 8).toUpperCase()} · Dealer: {dealers.find(d => d.id === editingOrder.dealerId)?.name || editingOrder.dealerId}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEditingOrder(null)}
+                  className="p-2 text-blue-200 hover:bg-blue-800 rounded-xl transition-colors"
+                >
+                  <XIcon size={24} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* ── Items List ── */}
+                <div>
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Order Items</h4>
+                  <div className="overflow-x-auto rounded-2xl border border-gray-100">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-900 text-white">
+                          <th className="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider">Product</th>
+                          <th className="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider">Spec</th>
+                          <th className="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider">Qty</th>
+                          <th className="text-right px-4 py-3 font-bold text-xs uppercase tracking-wider">Unit Price</th>
+                          <th className="text-right px-4 py-3 font-bold text-xs uppercase tracking-wider">Total</th>
+                          <th className="px-4 py-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {editItems.map((item, idx) => (
+                          <tr key={`${item.priceId}-${idx}`} className="bg-white hover:bg-gray-50/50">
+                            <td className="px-4 py-3">
+                              <p className="font-bold text-gray-900">{item.productName}</p>
+                              <p className="text-xs text-gray-400">{item.variantName}</p>
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs text-gray-500 font-medium">
+                              {item.width} · {item.length} · {item.type}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => updateEditItemQty(idx, item.quantity - 1)}
+                                  disabled={item.quantity <= 1}
+                                  className="p-1 hover:bg-gray-100 rounded-lg text-gray-500 disabled:opacity-40 transition-colors"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <span className="w-8 text-center font-black text-gray-900">{item.quantity}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => updateEditItemQty(idx, item.quantity + 1)}
+                                  className="p-1 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right font-bold text-gray-700">₹{item.unitPrice}</td>
+                            <td className="px-4 py-3 text-right font-black text-emerald-700">₹{item.quantity * item.unitPrice}</td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => removeEditItem(idx)}
+                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {editItems.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-gray-400 font-medium">
+                              No items in order. Please add products below.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* ── Add Product Section ── */}
+                <div className="bg-gray-50/80 border border-gray-200/60 rounded-2xl p-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Plus size={16} className="text-blue-600" />
+                    <h5 className="text-xs font-black text-gray-700 uppercase tracking-widest">Add Product Configuration</h5>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                    {/* Product */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Product</label>
+                      <select
+                        value={selectedProductId}
+                        onChange={e => {
+                          setSelectedProductId(e.target.value);
+                          setSelectedVariantId("");
+                          setSelectedWidthId("");
+                          setSelectedLengthId("");
+                          setSelectedTypeId("");
+                        }}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none text-xs font-medium text-gray-700 bg-white"
+                      >
+                        <option value="">Select...</option>
+                        {catalogue?.products.map((p: any) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Variant */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Variant</label>
+                      <select
+                        value={selectedVariantId}
+                        disabled={!selectedProductId}
+                        onChange={e => {
+                          setSelectedVariantId(e.target.value);
+                          setSelectedWidthId("");
+                          setSelectedLengthId("");
+                          setSelectedTypeId("");
+                        }}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none text-xs font-medium text-gray-700 bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        <option value="">Select...</option>
+                        {catalogue?.variants
+                          .filter((v: any) => v.productId === selectedProductId)
+                          .map((v: any) => (
+                            <option key={v.id} value={v.id}>{v.name}</option>
+                          ))}
+                      </select>
+                    </div>
+
+                    {/* Width */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Width</label>
+                      <select
+                        value={selectedWidthId}
+                        disabled={!selectedVariantId}
+                        onChange={e => {
+                          setSelectedWidthId(e.target.value);
+                          setSelectedLengthId("");
+                          setSelectedTypeId("");
+                        }}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none text-xs font-medium text-gray-700 bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        <option value="">Select...</option>
+                        {availableWidths.map((w: any) => (
+                          <option key={w.id} value={w.id}>{w.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Length */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Length</label>
+                      <select
+                        value={selectedLengthId}
+                        disabled={!selectedWidthId}
+                        onChange={e => {
+                          setSelectedLengthId(e.target.value);
+                          setSelectedTypeId("");
+                        }}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none text-xs font-medium text-gray-700 bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        <option value="">Select...</option>
+                        {availableLengths.map((l: any) => (
+                          <option key={l.id} value={l.id}>{l.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Type */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</label>
+                      <select
+                        value={selectedTypeId}
+                        disabled={!selectedLengthId}
+                        onChange={e => {
+                          setSelectedTypeId(e.target.value);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none text-xs font-medium text-gray-700 bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        <option value="">Select...</option>
+                        {availableTypes.map((t: any) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div>
+                      {matchingPrice ? (
+                        <span className="text-xs font-black text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-3 py-1.5 rounded-xl">
+                          Unit Price: ₹{matchingPrice.price}
+                        </span>
+                      ) : selectedTypeId ? (
+                        <span className="text-xs font-bold text-rose-500">
+                          Configuration pricing not found.
+                        </span>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addProductToOrder}
+                      disabled={!matchingPrice}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-bold rounded-xl transition-all"
+                    >
+                      <Plus size={14} /> Add Item
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Discounts & Offers Section ── */}
+                <div>
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Discounts & Offers</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {totals.eligibleDiscounts.map((disc: any) => {
+                      const initialTotal = editItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+                      const satisfiesCondition = disc.conditionType === 'min_invoice_value' ? initialTotal >= (disc.conditionValue || 0) : true;
+                      const isChecked = !!selectedDiscounts[disc.id];
+
+                      return (
+                        <label
+                          key={disc.id}
+                          className={`flex items-start gap-3 p-3 rounded-2xl border transition-all cursor-pointer select-none ${
+                            !satisfiesCondition
+                              ? "bg-gray-50 border-gray-200 opacity-50 cursor-not-allowed"
+                              : isChecked
+                              ? "bg-emerald-50/50 border-emerald-300 text-emerald-900"
+                              : "bg-white border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked && satisfiesCondition}
+                            disabled={!satisfiesCondition}
+                            onChange={e => {
+                              setSelectedDiscounts(prev => ({
+                                ...prev,
+                                [disc.id]: e.target.checked
+                              }));
+                            }}
+                            className="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                              {disc.name}
+                              <span className="inline-block text-[10px] font-black bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md">
+                                {disc.percentage}% Off
+                              </span>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5 font-medium">
+                              {disc.conditionType === 'min_invoice_value' 
+                                ? `Min invoice value: ₹${disc.conditionValue}` 
+                                : 'Eligible discount'}
+                            </p>
+                            {!satisfiesCondition && (
+                              <p className="text-[10px] text-rose-500 font-bold mt-1">
+                                Required min order value: ₹{disc.conditionValue} (Current: ₹{initialTotal})
+                              </p>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                    {totals.eligibleDiscounts.length === 0 && (
+                      <div className="col-span-2 text-center py-4 bg-gray-50 border border-gray-200 border-dashed rounded-2xl text-xs font-medium text-gray-400">
+                        No active discounts found for dealer's state ({editingOrder?.dealerKyc?.state || "N/A"}).
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Totals Summary ── */}
+                <div className="bg-gray-900 text-white rounded-2xl p-5 space-y-3 shadow-lg shadow-gray-900/10">
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Live Order Summary</h4>
+                  <div className="space-y-2 text-sm font-medium">
+                    <div className="flex justify-between text-gray-400">
+                      <span>Subtotal (Excl. Tax)</span>
+                      <span>₹{totals.baseSubtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>GST Tax Amount</span>
+                      <span>₹{totals.totalGstAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>Gross Total (Incl. Tax)</span>
+                      <span>₹{(totals.baseSubtotal + totals.totalGstAmount).toFixed(2)}</span>
+                    </div>
+                    
+                    {totals.appliedDiscountsRecord.length > 0 && (
+                      <div className="border-t border-gray-800/80 pt-2 space-y-1.5">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Applied Discounts</span>
+                        {totals.appliedDiscountsRecord.map((d: any) => (
+                          <div key={d.id} className="flex justify-between text-emerald-400 text-xs font-bold">
+                            <span>{d.name} ({d.percentage}%)</span>
+                            <span>- ₹{d.amount.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="border-t border-gray-800 pt-2 flex justify-between items-baseline">
+                      <span className="font-black text-lg">Grand Total</span>
+                      <span className="font-black text-2xl text-emerald-400">₹{totals.finalTotal}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Modal Actions ── */}
+              <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingOrder(null)}
+                  className="px-5 py-2.5 font-bold text-gray-600 hover:bg-gray-200 rounded-xl transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={savingEdit || editItems.length === 0}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-black rounded-xl transition-colors text-sm"
+                >
+                  {savingEdit ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Save Changes
+                </button>
               </div>
             </motion.div>
           </div>

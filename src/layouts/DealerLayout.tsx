@@ -1,27 +1,31 @@
 import { useState, useEffect } from "react";
+import Dashboard from "../pages/dealer/Dashboard";
 import Profile from "../pages/dealer/Profile";
 import Products from "../pages/dealer/Products";
 import Orders from "../pages/dealer/Orders";
 import Cart from "../pages/dealer/Cart";
 import Notifications from "../pages/dealer/Notifications";
-import { UserCircle, Menu, X, Sprout, UserCircle as UserCircleIcon, PackageSearch, ShoppingCart, PackageCheck, Bell, LogOut } from "lucide-react";
+import Discounts from "../pages/dealer/Discounts";
+import { UserCircle, Menu, X, Sprout, UserCircle as UserCircleIcon, PackageSearch, ShoppingCart, PackageCheck, Bell, LogOut, Percent, LayoutDashboard } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { BACKEND_URL } from '../config';
 
-type DealerPage = "PROFILE" | "PRODUCTS" | "CART" | "ORDERS" | "NOTIFICATIONS";
+type DealerPage = "DASHBOARD" | "PROFILE" | "PRODUCTS" | "CART" | "ORDERS" | "NOTIFICATIONS" | "DISCOUNTS";
 
 const menuItems: { label: string; key: DealerPage; icon: any }[] = [
+  { label: "Dashboard", key: "DASHBOARD", icon: LayoutDashboard },
   { label: "My Profile", key: "PROFILE", icon: UserCircleIcon },
   { label: "Products", key: "PRODUCTS", icon: PackageSearch },
   { label: "Shopping Cart", key: "CART", icon: ShoppingCart },
   { label: "My Orders", key: "ORDERS", icon: PackageCheck },
+  { label: "Offers & Discounts", key: "DISCOUNTS", icon: Percent },
   { label: "Notifications", key: "NOTIFICATIONS", icon: Bell },
 ];
 
 export default function DealerLayout() {
   const [page, setPage] = useState<DealerPage>(() => {
-    return (localStorage.getItem("dealerPage") as DealerPage) || "PROFILE";
+    return (localStorage.getItem("dealerPage") as DealerPage) || "DASHBOARD";
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -82,12 +86,14 @@ export default function DealerLayout() {
 
   const renderPage = () => {
     switch (page) {
+      case "DASHBOARD": return <Dashboard setPage={setPage} />;
       case "PROFILE": return <Profile />;
       case "PRODUCTS": return <Products onCartChange={fetchCartCount} />;
       case "CART": return <Cart setPage={setPage} />;
-      case "ORDERS": return <Orders />;
+      case "ORDERS": return <Orders setPage={setPage} />;
+      case "DISCOUNTS": return <Discounts />;
       case "NOTIFICATIONS": return <Notifications />;
-      default: return <Profile />;
+      default: return <Dashboard setPage={setPage} />;
     }
   };
 

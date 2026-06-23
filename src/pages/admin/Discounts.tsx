@@ -84,7 +84,7 @@ export default function AdminDiscounts() {
 
   const handleAddNew = () => {
     setEditingId("NEW");
-    setFormData({ name: "", percentage: 0, conditionType: "manual_selection", conditionValue: 0, sequence: 0, isActive: true });
+    setFormData({ name: "", percentage: 0, conditionType: "manual_selection", conditionValue: 0, sequence: 0, state: "", isActive: true });
   };
 
   return (
@@ -137,6 +137,10 @@ export default function AdminDiscounts() {
                     <input type="number" step="0.01" name="percentage" value={formData.percentage || 0} onChange={handleChange} className="w-full border rounded-xl p-2.5 bg-white text-sm" required />
                   </div>
                   <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">State (Optional)</label>
+                    <input type="text" name="state" value={formData.state || ""} onChange={handleChange} className="w-full border rounded-xl p-2.5 bg-white text-sm" placeholder="e.g. Maharashtra" />
+                  </div>
+                  <div>
                     <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Condition</label>
                     <select name="conditionType" value={formData.conditionType || "manual_selection"} onChange={handleChange} className="w-full border rounded-xl p-2.5 bg-white text-xs">
                       <option value="manual_selection">Manual Selection</option>
@@ -172,6 +176,10 @@ export default function AdminDiscounts() {
                     <div>
                       <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Percentage (%)</label>
                       <input type="number" step="0.01" name="percentage" value={formData.percentage} onChange={handleChange} className="w-full border rounded-xl p-2.5 bg-white text-sm" required />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">State (Optional)</label>
+                      <input type="text" name="state" value={formData.state || ""} onChange={handleChange} className="w-full border rounded-xl p-2.5 bg-white text-sm" placeholder="e.g. Maharashtra" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Condition</label>
@@ -223,6 +231,12 @@ export default function AdminDiscounts() {
                     </div>
                   </div>
                   <div className="pt-2 border-t border-gray-100 flex justify-between items-center text-xs text-gray-600">
+                    <span className="font-bold uppercase tracking-widest text-[9px] text-gray-400">Target State</span>
+                    <span className="font-semibold text-gray-700 bg-gray-50 px-2.5 py-1 rounded-lg">
+                      {d.state || "All States"}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-gray-100 flex justify-between items-center text-xs text-gray-600">
                     <span className="font-bold uppercase tracking-widest text-[9px] text-gray-400">Condition</span>
                     <span className="font-semibold text-gray-700 bg-gray-50 px-2.5 py-1 rounded-lg">
                       {d.conditionType === "manual_selection" ? "Manual Select" : `>= ₹${d.conditionValue?.toLocaleString()}`}
@@ -248,6 +262,7 @@ export default function AdminDiscounts() {
                   <th className="px-6 py-4 font-black uppercase tracking-wider text-xs">Name</th>
                   <th className="px-6 py-4 font-black uppercase tracking-wider text-xs">Percentage</th>
                   <th className="px-6 py-4 font-black uppercase tracking-wider text-xs">Condition</th>
+                  <th className="px-6 py-4 font-black uppercase tracking-wider text-xs">Target State</th>
                   <th className="px-6 py-4 font-black uppercase tracking-wider text-xs">Status</th>
                   <th className="px-6 py-4 font-black uppercase tracking-wider text-xs text-right">Actions</th>
                 </tr>
@@ -255,8 +270,8 @@ export default function AdminDiscounts() {
               <tbody className="divide-y divide-gray-100">
                 {editingId === "NEW" && (
                   <tr className="bg-emerald-50/50">
-                    <td colSpan={6} className="p-6">
-                      <form onSubmit={handleSave} className="grid grid-cols-2 md:grid-cols-6 gap-4 items-end">
+                    <td colSpan={7} className="p-6">
+                      <form onSubmit={handleSave} className="grid grid-cols-2 md:grid-cols-7 gap-4 items-end">
                         <div>
                           <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Sequence</label>
                           <input type="number" name="sequence" value={formData.sequence || 0} onChange={handleChange} className="w-full border rounded-lg p-2" required />
@@ -268,6 +283,10 @@ export default function AdminDiscounts() {
                         <div>
                           <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Percentage (%)</label>
                           <input type="number" step="0.01" name="percentage" value={formData.percentage || 0} onChange={handleChange} className="w-full border rounded-lg p-2" required />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">State (Optional)</label>
+                          <input type="text" name="state" value={formData.state || ""} onChange={handleChange} className="w-full border rounded-lg p-2" placeholder="e.g. Maharashtra" />
                         </div>
                         <div>
                           <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Condition</label>
@@ -292,8 +311,8 @@ export default function AdminDiscounts() {
                 {discounts.map(d => (
                   editingId === d.id ? (
                     <tr key={d.id} className="bg-emerald-50/50">
-                      <td colSpan={6} className="p-6 border-b border-emerald-100">
-                        <form onSubmit={handleSave} className="grid grid-cols-2 md:grid-cols-6 gap-4 items-end">
+                      <td colSpan={7} className="p-6 border-b border-emerald-100">
+                        <form onSubmit={handleSave} className="grid grid-cols-2 md:grid-cols-7 gap-4 items-end">
                           <div>
                             <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Sequence</label>
                             <input type="number" name="sequence" value={formData.sequence} onChange={handleChange} className="w-full border rounded-lg p-2" required />
@@ -305,6 +324,10 @@ export default function AdminDiscounts() {
                           <div>
                             <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Percentage (%)</label>
                             <input type="number" step="0.01" name="percentage" value={formData.percentage} onChange={handleChange} className="w-full border rounded-lg p-2" required />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">State (Optional)</label>
+                            <input type="text" name="state" value={formData.state || ""} onChange={handleChange} className="w-full border rounded-lg p-2" placeholder="e.g. Maharashtra" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Condition</label>
@@ -337,6 +360,7 @@ export default function AdminDiscounts() {
                       <td className="px-6 py-4 text-gray-600 font-medium">
                         {d.conditionType === "manual_selection" ? "Manual Select" : `>= ₹${d.conditionValue?.toLocaleString()}`}
                       </td>
+                      <td className="px-6 py-4 text-gray-600 font-medium">{d.state || "All States"}</td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 text-xs font-bold uppercase tracking-widest rounded-full ${d.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
                           {d.isActive ? 'Active' : 'Inactive'}
@@ -355,7 +379,7 @@ export default function AdminDiscounts() {
                 ))}
                 {discounts.length === 0 && editingId !== "NEW" && (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center text-gray-500 font-medium">
+                    <td colSpan={7} className="p-12 text-center text-gray-500 font-medium">
                       No discounts configured. Add a new discount to get started.
                     </td>
                   </tr>
